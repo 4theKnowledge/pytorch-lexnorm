@@ -14,9 +14,14 @@ from data_utils import TabbedCorpusReader
 # Also generate the inverse ix_to_word and ix_to_tag.
 def get_word_and_tag_ids(tagged_sents):
 	word_to_ix = { "<PAD>": 0 }
-	tag_to_ix = {}
 	ix_to_word = [ "<PAD>" ]
-	ix_to_tag = []
+
+	if cf.MODEL_TYPE == "S2S":
+		tag_to_ix = { "<PAD>" : 0}
+		ix_to_tag = [ "<PAD>" ]
+	else:
+		tag_to_ix = {}
+		ix_to_tag = []
 	for sent in tagged_sents:
 		if cf.MODEL_TYPE == S2S:
 			for word, tag in sent:

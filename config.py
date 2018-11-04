@@ -34,21 +34,26 @@ class Config():
 
 	def __init__(self):
 
-		self.MODEL_TYPE 		= S21   # Can be either "S2S" (sequence to sequence) or "S21" (sequence to one).
+		self.MODEL_TYPE 		= S2S   # Can be either "S2S" (sequence to sequence) or "S21" (sequence to one).
 
 		self.EMBEDDING_DIM 		= 300	# The number of dimensions to use for embeddings. Usually 300.
 		self.HIDDEN_DIM 		= 200	# The number of dimensions of the hidden layer.
-		self.BATCH_SIZE 		= 32	# The batch size (larger uses more memory but is faster)
+		self.BATCH_SIZE 		= 64	# The batch size (larger uses more memory but is faster)
 
 		self.MIN_SENT_LENGTH 	= 1		# The minimum length of a sentence. Sentences smaller than this will not be trained on.
 		self.MAX_SENT_LENGTH 	= 150	# The maximum length of a sentence. Sentences larger than this will not be trained on.
 		self.MAX_EPOCHS 		= 3000	# The maximum number of epochs to run.
 		self.EARLY_STOP			= True  # Whether to stop when no progress has been made for the last 10 epochs. (i.e. loss has not improved)
 
-		self.DATA_FOLDER		= 'data/datasets/twitter'
-		self.TRAIN_FILENAME		= 'train.tsv'
-		self.DEV_FILENAME		= 'dev.tsv'
-		self.TEST_FILENAME		= 'test.tsv'
+		# self.DATA_FOLDER		= 'data/datasets/twitter'
+		# self.TRAIN_FILENAME		= 'train.tsv'
+		# self.DEV_FILENAME		= 'dev.tsv'
+		# self.TEST_FILENAME		= 'test.tsv'
+
+		self.DATA_FOLDER		= 'data/datasets/dmp_lexnorm'
+		self.TRAIN_FILENAME		= 'train.txt'
+		self.DEV_FILENAME		= 'test.txt'
+		self.TEST_FILENAME		= 'test.txt'
 
 		#self.DATA_FOLDER		= 'data/datasets/dmp'
 		#self.TRAIN_FILENAME		= 'train.txt'
@@ -56,8 +61,13 @@ class Config():
 		#self.TEST_FILENAME		= 'test.txt'
 
 		self.EMBEDDINGS_FOLDER  = 'data/fasttext'
+		
 		self.EMB_VEC_FILENAME   = 'data/fasttext/wiki-news-300d-1M-subword.vec'
 		self.EMB_BIN_FILENAME   = 'data/fasttext/wiki-news-300d-1M-subword.bin'
+
+
+		#self.EMB_VEC_FILENAME   = 'data/fasttext/cc.en.300.vec'
+		#self.EMB_BIN_FILENAME   = 'data/fasttext/cc.en.300.bin'
 
 		self.EMB_OOV_FILENAME     = 'asset/oov_embeddings.vec'
 		self.EMB_TRIMMED_FILENAME = 'asset/fasttext_trimmed.npz'

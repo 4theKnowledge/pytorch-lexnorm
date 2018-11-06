@@ -8,6 +8,7 @@ import sys
 from colorama import Fore, Back, Style
 from load_data import load_data
 from model import LSTMTagger
+from model_feedforward import DeepEncodingTagger
 import torch.optim as optim
 import torch
  # TODO: Move to cf
@@ -30,7 +31,7 @@ def main():
 					   cf.MAX_SENT_LENGTH,
 					   glove_embeddings)
 									# Ensure the word embeddings aren't modified during training
-	optimizer = optim.SGD(filter(lambda p: p.requires_grad, model.parameters()), lr=0.1)
+	optimizer = optim.SGD(filter(lambda p: p.requires_grad, model.parameters()), lr=cf.LEARNING_RATE)
 	model.cuda()
 	#if(cf.LOAD_PRETRAINED_MODEL):
 	#	model.load_state_dict(torch.load('asset/model_trained'))
@@ -42,6 +43,8 @@ def main():
 		for (i, (batch_x, batch_y)) in enumerate(data_iterators["train"]):
 			# Ignore batch if it is not the same size as the others (happens at the end sometimes)
 			if len(batch_x) != cf.BATCH_SIZE:
+				print len(batch_x)
+				logger.warn("A batch did not have the correct number of sentences.")
 				continue
 			batch_x = batch_x.to(device)
 			# Step 1. Remember that Pytorch accumulates gradients.
@@ -50,7 +53,7 @@ def main():
 
 			# Also, we need to clear out the hidden state of the LSTM,
 			# detaching it from its history on the last instance.
-			model.hidden = model.init_hidden()
+			#model.hidden = model.init_hidden()
 
 			# Step 2. Get our inputs ready for the network, that is, turn them into
 			# Tensors of word indices.
@@ -64,10 +67,11 @@ def main():
 				#batch_x_maxlengths.append( len(x) )
 
 			# Step 3. Run our forward pass.
+			model.train()
 			tag_scores = model(batch_x, batch_x_lengths)
 
 			#loss = loss_function(tag_scores, batch_y)
-			loss = model.calculate_loss(tag_scores, batch_y, batch_x_lengths, word_to_ix, tag_to_ix)
+			loss = model.calculate_loss(tag_scores, batch_y)
 			
 			loss.backward()
 			optimizer.step()
@@ -85,12 +89,12 @@ def main():
 			logger.info("Average loss over past 10 epochs: %.6f" % avg_loss)
 			if epoch >= 20:
 				prev_avg_loss = sum([l for l in loss_list[epoch-20:epoch-10]]) / 10
-				if(avg_loss >= prev_avg_loss):
+				if(avg_loss >= prev_avg_loss and cf.EARLY_STOP):
 					logger.info("Average loss has not improved over past 10 epochs. Stopping early.")
-					evaluate_model(model, data_iterators["dev"], ix_to_word, ix_to_tag, tag_to_ix, print_output = True);
+					evaluate_model(model, data_iterators["dev"], ix_to_word, ix_to_tag, tag_to_ix, epoch, print_output = True);
 					break;
 		if epoch % 10 == 0 or epoch == cf.MAX_EPOCHS:
-			evaluate_model(model, data_iterators["dev"], ix_to_word, ix_to_tag, tag_to_ix, print_output = True);
+			evaluate_model(model, data_iterators["dev"], ix_to_word, ix_to_tag, tag_to_ix, epoch, print_output = True);
 
 	logger.info("Saving model...")
 	torch.save(model.state_dict(), "asset/model_trained")

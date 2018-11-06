@@ -93,7 +93,7 @@ class LSTMTagger(nn.Module):
 			return torch.stack([ y[batch_lengths[i] - 1] for i, y in enumerate(Y_hat) ])
 
 	# https://towardsdatascience.com/taming-lstms-variable-sized-mini-batches-and-why-pytorch-is-good-for-your-health-61d35642972e
-	def calculate_loss(self, Y_hat, Y):
+	def calculate_loss(self, Y_hat, Y, X_lengths, word_to_ix, tag_to_ix):
 		# TRICK 3 ********************************
 		# before we calculate the negative log likelihood, we need to mask out the activations
 		# this means we don't want to take into account padded items in the output vector
@@ -102,7 +102,7 @@ class LSTMTagger(nn.Module):
 
 		if(cf.MODEL_TYPE == S2S):
 			Y = Y.view(-1).to(device)
-			Y_hat = Y_hat.view(-1, self.tag_size)
+			Y_hat = Y_hat.view(-1, len(tag_to_ix))
 			# create a mask by filtering out all tokens that ARE NOT the padding token
 			#tag_pad_token = word_to_ix['<PAD>']
 

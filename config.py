@@ -37,20 +37,25 @@ class Config():
 		self.MODEL_TYPE 		= S2S   # Can be either "S2S" (sequence to sequence) or "S21" (sequence to one).
 
 		self.EMBEDDING_DIM 		= 300	# The number of dimensions to use for embeddings. Usually 300.
-		self.HIDDEN_DIM 		= 200	# The number of dimensions of the hidden layer.
-		self.BATCH_SIZE 		= 64	# The batch size (larger uses more memory but is faster)
+		self.HIDDEN_DIM 		= 300	# The number of dimensions of the hidden layer.
+		self.BATCH_SIZE 		= 100	# The batch size (larger uses more memory but is faster)
+		self.LEARNING_RATE		= 0.1	# The learning rate
 
 		self.MIN_SENT_LENGTH 	= 1		# The minimum length of a sentence. Sentences smaller than this will not be trained on.
-		self.MAX_SENT_LENGTH 	= 150	# The maximum length of a sentence. Sentences larger than this will not be trained on.
+		self.MAX_SENT_LENGTH 	= 60	# The maximum length of a sentence. Sentences larger than this will not be trained on.
 		self.MAX_EPOCHS 		= 3000	# The maximum number of epochs to run.
-		self.EARLY_STOP			= True  # Whether to stop when no progress has been made for the last 10 epochs. (i.e. loss has not improved)
+		self.EARLY_STOP			= False  # Whether to stop when no progress has been made for the last 10 epochs. (i.e. loss has not improved)
+
+		self.USE_PRETRAINED_EMBEDDINGS = True
+
+		self.CHARACTER_LEVEL 	= False
 
 		# self.DATA_FOLDER		= 'data/datasets/twitter'
 		# self.TRAIN_FILENAME		= 'train.tsv'
 		# self.DEV_FILENAME		= 'dev.tsv'
 		# self.TEST_FILENAME		= 'test.tsv'
 
-		self.DATA_FOLDER		= 'data/datasets/dmp_lexnorm'
+		self.DATA_FOLDER		= 'data/datasets/twitter_lexnorm_word'
 		self.TRAIN_FILENAME		= 'train.txt'
 		self.DEV_FILENAME		= 'test.txt'
 		self.TEST_FILENAME		= 'test.txt'

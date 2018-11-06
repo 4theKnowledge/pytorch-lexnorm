@@ -16,13 +16,14 @@ def get_word_and_tag_ids(tagged_sents):
 	word_to_ix = { "<PAD>": 0 }
 	ix_to_word = [ "<PAD>" ]
 
-	if cf.MODEL_TYPE == "S2S":
+	if cf.MODEL_TYPE == S2S:
 		tag_to_ix = { "<PAD>" : 0}
 		ix_to_tag = [ "<PAD>" ]
 	else:
 		tag_to_ix = {}
 		ix_to_tag = []
 	for sent in tagged_sents:
+
 		if cf.MODEL_TYPE == S2S:
 			for word, tag in sent:
 				if word not in word_to_ix:
@@ -31,6 +32,7 @@ def get_word_and_tag_ids(tagged_sents):
 				if tag not in tag_to_ix:
 					tag_to_ix[tag] = len(tag_to_ix)
 					ix_to_tag.append(tag)
+
 		elif cf.MODEL_TYPE == S21:			
 			for word in sent[0]:
 				if word not in word_to_ix:
@@ -156,20 +158,21 @@ def main():
 
 	logger.info("%d sentences loaded." % len(tagged_sents))
 	tagged_sents = clean_sentences(tagged_sents)
-	logger.info("%d sentences after cleaning." % len(tagged_sents))
+	logger.info("%d sentences after cleaning (removing short/long sentences)." % len(tagged_sents))
 
 	word_to_ix, ix_to_word, tag_to_ix, ix_to_tag = get_word_and_tag_ids(tagged_sents)
 
 	save_data_to_files(tagged_sents, word_to_ix, tag_to_ix, ix_to_word, ix_to_tag)
 
-	# Get all words in the embedding vocab
-	emb_vocab = get_emb_vocab(cf.EMB_VEC_FILENAME)
+	if cf.USE_PRETRAINED_EMBEDDINGS:
+		# Get all words in the embedding vocab
+		emb_vocab = get_emb_vocab(cf.EMB_VEC_FILENAME)
 
-	# Generate OOV embeddings for any words in ix_to_word that aren't in emb_vocab
-	generate_oov_embeddings(ix_to_word, emb_vocab)
+		# Generate OOV embeddings for any words in ix_to_word that aren't in emb_vocab
+		generate_oov_embeddings(ix_to_word, emb_vocab)
 
-	# Combine OOV embeddings with IV embeddings and export them to a file
-	export_trimmed_embedding_vectors(word_to_ix, cf.EMB_OOV_FILENAME, cf.EMB_VEC_FILENAME, cf.EMB_TRIMMED_FILENAME, cf.EMBEDDING_DIM)
+		# Combine OOV embeddings with IV embeddings and export them to a file
+		export_trimmed_embedding_vectors(word_to_ix, cf.EMB_OOV_FILENAME, cf.EMB_VEC_FILENAME, cf.EMB_TRIMMED_FILENAME, cf.EMBEDDING_DIM)
 
 	logger.info("Data building complete.")
 

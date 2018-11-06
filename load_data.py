@@ -41,6 +41,15 @@ def tagged_sents_to_numpy(tagged_sents, word_to_ix, tag_to_ix):
 		elif cf.MODEL_TYPE == S21:
 			tag   = sent[1]
 			data_y.append(tag_to_ix[tag])
+
+	
+	# If there are not enough sentences to create a set of perfectly-sized batches, append some batches that are all 0s.
+	# These will be ignored by the model.
+	if cf.MODEL_TYPE == S2S:
+		to_pad = cf.BATCH_SIZE - (len(data_x) % cf.BATCH_SIZE)
+		for i in range(to_pad):
+			data_x.append( np.zeros(cf.MAX_SENT_LENGTH, dtype = int))
+			data_y.append( np.zeros(cf.MAX_SENT_LENGTH, dtype = int))
 	return np.asarray(data_x), np.asarray(data_y), rejected_sents
 
 # Found at https://github.com/guillaumegenthial/sequence_tagging
@@ -110,7 +119,10 @@ def load_data():
 
 	data_iterators, test_dataset = load_datasets(word_to_ix, tag_to_ix)
 
-	pretrained_embeddings = get_trimmed_emb_vectors(cf.EMB_TRIMMED_FILENAME)
-	logger.info("Loaded %d pretrained embeddings." % len(pretrained_embeddings)) 
+	if cf.USE_PRETRAINED_EMBEDDINGS:
+		pretrained_embeddings = get_trimmed_emb_vectors(cf.EMB_TRIMMED_FILENAME)
+		logger.info("Loaded %d pretrained embeddings." % len(pretrained_embeddings)) 
+	else:
+		pretrained_embeddings = None
 
 	return data_iterators, test_dataset, pretrained_embeddings, word_to_ix, ix_to_word, tag_to_ix, ix_to_tag

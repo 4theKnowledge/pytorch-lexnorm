@@ -2,18 +2,24 @@ import torch
 from config import *
 from load_data import load_data
 from model import *
+import codecs
 from colorama import Fore, Back, Style
+
 
 def print_sentence():
 	pass
 
-def evaluate_model(model, dev_iterator, ix_to_word, ix_to_tag, tag_to_ix, print_output=False):
+def evaluate_model(model, dev_iterator, ix_to_word, ix_to_tag, tag_to_ix, epoch_number, print_output=False):
 
 	correct_preds = 0.0
 	total_preds = 0.0
 	total_correctable = 0.0
 
 	max_tag_length = max([len(y) for y in tag_to_ix.keys()])
+
+	wordlist = []
+	predlist = []
+	corrlist = []
 
 	with torch.no_grad():
 		if print_output:
@@ -22,25 +28,28 @@ def evaluate_model(model, dev_iterator, ix_to_word, ix_to_tag, tag_to_ix, print_
 		for (bi, (batch_x, batch_y)) in enumerate(dev_iterator):
 			# Ignore batch if it is not the same size as the others (happens at the end sometimes)
 			if len(batch_x) != cf.BATCH_SIZE:
+				logger.warn("An evaluation batch did not have the correct number of sentences.")
 				continue
 			batch_x = batch_x.to(device)
 			model.zero_grad()
-			model.hidden = model.init_hidden()
 			batch_x_lengths = []
 			for x in batch_x:
 				batch_x_lengths.append( np.nonzero(x).size(0) )
 
 			# TODO: Make this a method of the lstm tagger class instead
+			model.eval()
 			tag_scores = model(batch_x, batch_x_lengths)	
 
 			#print tag_scores
 		
 			for i, sent in enumerate(batch_x):
 				s = []
-
+				
 				if cf.MODEL_TYPE == S2S:
-					for j, word_ix in enumerate(sent):
-						if word_ix > 0:						
+					if cf.CHARACTER_LEVEL:
+						s = [[], [], [], [], []]
+					for j, word_ix in enumerate(sent):						
+						if cf.CHARACTER_LEVEL or word_ix > 0:						
 							pred = tag_scores[i][j]
 							v, pi = pred.max(0)
 							pi = pi.cpu().numpy()				# predicted index							
@@ -48,17 +57,50 @@ def evaluate_model(model, dev_iterator, ix_to_word, ix_to_tag, tag_to_ix, print_
 						
 							word_color = Style.BRIGHT if ci > 0 else Style.DIM
 							tag_color = Fore.GREEN if ci == pi	 else Fore.RED
-							if ci == 0:
-								tag_color = Style.DIM
-							s.append(word_color + ix_to_word[word_ix] + Style.DIM + (("/" + Style.RESET_ALL + tag_color + ix_to_tag[pi]) if ci > 0 else "") + Style.RESET_ALL)
+							#if ci == 0:
+							#	tag_color = Style.DIM
 
-							not_entity = tag_to_ix["O"] if "O" in tag_to_ix else 0
-							if pi != 0 and ci == pi:
-								correct_preds += 1						  
-							if ci != 0:
-								total_correctable += 1
-							if pi != 0:
-								total_preds += 1
+							if cf.CHARACTER_LEVEL:
+								s[0].append(tag_color + ix_to_tag[pi] + Style.RESET_ALL)
+								s[1].append(ix_to_word[word_ix])
+								s[2].append(ix_to_tag[pi])
+								s[3].append(ix_to_tag[ci])
+								s[4].append(ix_to_word[word_ix])
+							else:	
+								s.append(word_color + ix_to_word[word_ix] + Style.DIM + (("/" + Style.RESET_ALL + tag_color + ix_to_tag[pi]) if ci > 0 else "") + Style.RESET_ALL)
+
+								if pi != word_ix and ci == pi:
+									correct_preds += 1						  
+								if ci != word_ix:
+									total_correctable += 1
+								if pi != word_ix:
+									total_preds += 1
+
+								wordlist.append(ix_to_word[word_ix])
+								predlist.append(ix_to_tag[pi])
+								corrlist.append(ix_to_tag[ci])
+
+
+
+
+					if cf.CHARACTER_LEVEL:						
+						# Calculate the f score with respect to the words, not the characters
+						pi 		= "".join(s[2])
+						ci 		= "".join(s[3])
+						word_ix = "".join(s[4])
+
+
+						#print pi, ci, word_ix
+						if pi != word_ix and ci == pi:
+							correct_preds += 1						  
+						if ci != word_ix:
+							total_correctable += 1
+						if pi != word_ix:
+							total_preds += 1	
+
+						#print correct_preds, total_correctable, total_preds
+				
+
 
 				if cf.MODEL_TYPE == S21:			
 					pred = tag_scores[i]
@@ -75,6 +117,8 @@ def evaluate_model(model, dev_iterator, ix_to_word, ix_to_tag, tag_to_ix, print_
 					if ci == 0:
 						tag_color = Style.DIM
 
+					# TODO : change '0' to original index
+					# note. not sure how f1 score works with S21, might not really make any sense and should use acc instead
 					if pi != 0 and ci == pi:
 						correct_preds += 1						  
 					if ci != 0:
@@ -83,13 +127,23 @@ def evaluate_model(model, dev_iterator, ix_to_word, ix_to_tag, tag_to_ix, print_
 						total_preds += 1
 					
 
+				if cf.CHARACTER_LEVEL:
+					if print_output and bi < 1: # Print first 10 dev batches only
+						print "".join(s[1]).ljust(cf.MAX_SENT_LENGTH).replace("<PAD>", "_"), "".join(s[0]).replace("<PAD>", "_")
 
-				if print_output and bi < 1: # Print first 1 dev batches only
-					print " ".join(s)		
+					wordlist.append("".join(s[1]).replace("<PAD>", "_"))
+					predlist.append("".join(s[2]).replace("<PAD>", "_"))
+					corrlist.append("".join(s[3]).replace("<PAD>", "_"))
+										
+				else:
+					if print_output and bi < 1: # Print first 1 dev batches only
+						print " ".join(s)		
 
 
 		if print_output:
-			print ""		
+			print ""	
+
+
 
 		p = correct_preds / total_preds if correct_preds > 0 else 0
 		r = correct_preds / total_correctable if correct_preds > 0 else 0
@@ -98,6 +152,16 @@ def evaluate_model(model, dev_iterator, ix_to_word, ix_to_tag, tag_to_ix, print_
 		print "-" * 100
 		logger.info("F1 Score: %.4f" % f1)
 		print "-" * 100
+
+		with codecs.open("asset/predictions.txt", "w", 'utf-8') as f:
+			f.write("=" * 150)
+			f.write("\nResults for Epoch %d\n" % epoch_number)
+			f.write("F1 Score: %.4f\n" % f1)
+			f.write("Word".ljust(cf.MAX_SENT_LENGTH) + "Pred".ljust(cf.MAX_SENT_LENGTH) + "Correct form\n")
+			f.write("=" * 150)
+			f.write("\n")
+			for word, pred, corr in zip(wordlist, predlist, corrlist):
+				f.write(word.ljust(cf.MAX_SENT_LENGTH + 3) + pred.ljust(cf.MAX_SENT_LENGTH + 3) + corr + "\n")
 
 		return f1
 

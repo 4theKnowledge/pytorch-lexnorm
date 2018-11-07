@@ -37,7 +37,7 @@ def main():
 	#	model.load_state_dict(torch.load('asset/model_trained'))
 	#else:
 	num_batches = len(data_iterators["train"])
-	loss_list = [] # A place to store the loss history
+	f1_list = [] # A place to store the f1 history
 	for epoch in range(1, cf.MAX_EPOCHS+1):
 		epoch_start_time = time.time()
 		for (i, (batch_x, batch_y)) in enumerate(data_iterators["train"]):
@@ -83,18 +83,19 @@ def main():
 		#	f1 = evaluate_model(model, data_iterators["dev"], ix_to_word, ix_to_tag, tag_to_ix);
 		progress_bar.draw_completed_epoch(loss, loss_list, epoch, cf.MAX_EPOCHS, epoch_start_time)
 
-		loss_list.append(loss)
-		if epoch % 10 == 0:			
-			avg_loss = sum([l for l in loss_list[epoch-10:]]) / 10
-			logger.info("Average loss over past 10 epochs: %.6f" % avg_loss)
-			if epoch >= 20:
-				prev_avg_loss = sum([l for l in loss_list[epoch-20:epoch-10]]) / 10
-				if(avg_loss >= prev_avg_loss and cf.EARLY_STOP):
-					logger.info("Average loss has not improved over past 10 epochs. Stopping early.")
+		if epoch % 10 == 0 or epoch == cf.MAX_EPOCHS:
+			f1 = evaluate_model(model, data_iterators["dev"], ix_to_word, ix_to_tag, tag_to_ix, epoch, print_output = True);
+			f1_list.append(f1)			
+			if epoch >= 30:
+				avg_f1 = sum([f for f in f1_list[(epoch/10)-3:]]) / 3
+				logger.info("Average f1 over past 30 epochs: %.6f" % avg_f1)
+			if epoch >= 60:
+				prev_avg_f1 = sum([l for l in loss_list[(epoch/10)-6:(epoch/10)-9]]) / 3
+				if(avg_f1 <= prev_avg_f1 and cf.EARLY_STOP):
+					logger.info("Average f1 has not improved over past 60 epochs. Stopping early.")
 					evaluate_model(model, data_iterators["dev"], ix_to_word, ix_to_tag, tag_to_ix, epoch, print_output = True);
 					break;
-		if epoch % 10 == 0 or epoch == cf.MAX_EPOCHS:
-			evaluate_model(model, data_iterators["dev"], ix_to_word, ix_to_tag, tag_to_ix, epoch, print_output = True);
+
 
 	logger.info("Saving model...")
 	torch.save(model.state_dict(), "asset/model_trained")

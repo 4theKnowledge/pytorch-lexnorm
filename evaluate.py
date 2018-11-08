@@ -9,13 +9,13 @@ from colorama import Fore, Back, Style
 def print_sentence():
 	pass
 
-def evaluate_model(model, dev_iterator, ix_to_word, ix_to_tag, tag_to_ix, epoch_number, print_output=False):
+def evaluate_model(model, dev_iterator, word_to_ix, ix_to_word, wtag_to_ix, ix_to_wtag, char_to_ix, ix_to_char, ctag_to_ix, ix_to_ctag, epoch_number, print_output=False):
 
 	correct_preds = 0.0
 	total_preds = 0.0
 	total_correctable = 0.0
 
-	max_tag_length = max([len(y) for y in tag_to_ix.keys()])
+	max_tag_length = max([len(y) for y in wtag_to_ix.keys()])
 
 	wordlist = []
 	predlist = []
@@ -25,20 +25,25 @@ def evaluate_model(model, dev_iterator, ix_to_word, ix_to_tag, tag_to_ix, epoch_
 		if print_output:
 			print ""
 			logger.info("Dev set evaluation: ")
-		for (bi, (batch_x, batch_y)) in enumerate(dev_iterator):
+		for (bi, (batch_w, batch_x, batch_y)) in enumerate(dev_iterator):
 			# Ignore batch if it is not the same size as the others (happens at the end sometimes)
 			if len(batch_x) != cf.BATCH_SIZE:
 				logger.warn("An evaluation batch did not have the correct number of sentences.")
 				continue
 			batch_x = batch_x.to(device)
+			batch_w = batch_w.to(device)
 			model.zero_grad()
+
 			batch_x_lengths = []
 			for x in batch_x:
 				batch_x_lengths.append( np.nonzero(x).size(0) )
+			batch_w_lengths = []
+			for w in batch_w:
+				batch_w_lengths.append( np.nonzero(w).size(0) )
 
 			# TODO: Make this a method of the lstm tagger class instead
 			model.eval()
-			tag_scores = model(batch_x, batch_x_lengths)	
+			tag_scores = model(batch_w, batch_x, batch_w_lengths, batch_x_lengths)
 
 			#print tag_scores
 		
@@ -46,10 +51,12 @@ def evaluate_model(model, dev_iterator, ix_to_word, ix_to_tag, tag_to_ix, epoch_
 				s = []
 				
 				if cf.MODEL_TYPE == S2S:
-					if cf.CHARACTER_LEVEL:
+					if cf.GRANULARITY in [CHAR_LEVEL, CHAR_AND_WORD_LEVEL]:
 						s = [[], [], [], [], []]
-					for j, word_ix in enumerate(sent):						
-						if cf.CHARACTER_LEVEL or word_ix > 0:						
+					for j, token_ix in enumerate(sent):						
+						if cf.GRANULARITY in [CHAR_LEVEL, CHAR_AND_WORD_LEVEL] or word_ix > 0:			
+
+
 							pred = tag_scores[i][j]
 							v, pi = pred.max(0)
 							pi = pi.cpu().numpy()				# predicted index							
@@ -60,14 +67,16 @@ def evaluate_model(model, dev_iterator, ix_to_word, ix_to_tag, tag_to_ix, epoch_
 							#if ci == 0:
 							#	tag_color = Style.DIM
 
-							if cf.CHARACTER_LEVEL:
-								s[0].append(tag_color + ix_to_tag[pi] + Style.RESET_ALL)
-								s[1].append(ix_to_word[word_ix])
-								s[2].append(ix_to_tag[pi])
-								s[3].append(ix_to_tag[ci])
-								s[4].append(ix_to_word[word_ix])
+							if cf.GRANULARITY in [CHAR_LEVEL, CHAR_AND_WORD_LEVEL]:
+								char_ix = token_ix
+								s[0].append(tag_color + ix_to_ctag[pi] + Style.RESET_ALL)
+								s[1].append(ix_to_char[char_ix])
+								s[2].append(ix_to_ctag[pi])
+								s[3].append(ix_to_ctag[ci])
+								s[4].append(ix_to_char[char_ix])
 							else:	
-								s.append(word_color + ix_to_word[word_ix] + Style.DIM + (("/" + Style.RESET_ALL + tag_color + ix_to_tag[pi]) if ci > 0 else "") + Style.RESET_ALL)
+								word_ix = token_ix
+								s.append(word_color + ix_to_word[word_ix] + Style.DIM + (("/" + Style.RESET_ALL + tag_color + ix_to_wtag[pi]) if ci > 0 else "") + Style.RESET_ALL)
 
 								if pi != word_ix and ci == pi:
 									correct_preds += 1						  
@@ -77,13 +86,13 @@ def evaluate_model(model, dev_iterator, ix_to_word, ix_to_tag, tag_to_ix, epoch_
 									total_preds += 1
 
 								wordlist.append(ix_to_word[word_ix])
-								predlist.append(ix_to_tag[pi])
-								corrlist.append(ix_to_tag[ci])
+								predlist.append(ix_to_wtag[pi])
+								corrlist.append(ix_to_wtag[ci])
 
 
 
 
-					if cf.CHARACTER_LEVEL:						
+					if cf.GRANULARITY in [CHAR_LEVEL, CHAR_AND_WORD_LEVEL]:						
 						# Calculate the f score with respect to the words, not the characters
 						pi 		= "".join(s[2])
 						ci 		= "".join(s[3])
@@ -127,7 +136,7 @@ def evaluate_model(model, dev_iterator, ix_to_word, ix_to_tag, tag_to_ix, epoch_
 						total_preds += 1
 					
 
-				if cf.CHARACTER_LEVEL:
+				if cf.GRANULARITY in [CHAR_LEVEL, CHAR_AND_WORD_LEVEL]:
 					if print_output and bi < 1: # Print first 10 dev batches only
 						print "".join(s[1]).ljust(cf.MAX_SENT_LENGTH).replace("<PAD>", "_"), "".join(s[0]).replace("<PAD>", "_")
 
@@ -153,7 +162,8 @@ def evaluate_model(model, dev_iterator, ix_to_word, ix_to_tag, tag_to_ix, epoch_
 		logger.info("F1 Score: %.4f" % f1)
 		print "-" * 100
 
-		with codecs.open("asset/predictions.txt", "w", 'utf-8') as f:
+		predictions_filename = "models/%s/predictions/predictions_%d.txt" % (cf.MODEL_NAME, epoch_number)
+		with codecs.open(predictions_filename, "w", 'utf-8') as f:
 			f.write("=" * 150)
 			f.write("\nResults for Epoch %d\n" % epoch_number)
 			f.write("F1 Score: %.4f\n" % f1)
@@ -162,7 +172,7 @@ def evaluate_model(model, dev_iterator, ix_to_word, ix_to_tag, tag_to_ix, epoch_
 			f.write("\n")
 			for word, pred, corr in zip(wordlist, predlist, corrlist):
 				f.write(word.ljust(cf.MAX_SENT_LENGTH + 3) + pred.ljust(cf.MAX_SENT_LENGTH + 3) + corr + "\n")
-
+			logger.info("Predictions saved to %s." % predictions_filename)
 		return f1
 
 		# logger.info("Generated sentences: ")
@@ -174,13 +184,14 @@ def evaluate_model(model, dev_iterator, ix_to_word, ix_to_tag, tag_to_ix, epoch_
 		# print ""
 
 def main():
-	data_iterator, glove_embeddings, word_to_ix, ix_to_word = load_data()
+	raise Exception("calling evaluate directly is not yet supported")
+	# data_iterator, glove_embeddings, word_to_ix, ix_to_word = load_data()
 
-	model = LSTMTagger(cf.EMBEDDING_DIM, cf.HIDDEN_DIM, len(word_to_ix), cf.BATCH_SIZE, cf.MAX_SENT_LENGTH, glove_embeddings)
-	model.cuda()
-	model.load_state_dict(torch.load('asset/model_trained'))
+	# model = LSTMTagger(cf.EMBEDDING_DIM, cf.HIDDEN_DIM, len(word_to_ix), cf.BATCH_SIZE, cf.MAX_SENT_LENGTH, glove_embeddings)
+	# model.cuda()
+	# model.load_state_dict(torch.load('asset/model_trained'))
 
-	evaluate_model(model, ix_to_word)
+	# evaluate_model(model, ix_to_word)
 
 if __name__ == '__main__':
 	main()

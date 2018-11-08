@@ -13,10 +13,14 @@ from nltk.corpus.reader import ConllCorpusReader
 import torch
 # Converts a dataset to a numpy format so it can be loaded into the DataLoader.
 # if test_set is True, ignore min/max lengths
-def tagged_sents_to_numpy(tagged_sents, word_to_ix, tag_to_ix):
+
+def tagged_sents_to_numpy(tagged_sents, word_to_ix, wtag_to_ix, char_to_ix, ctag_to_ix, ix_to_char, ix_to_word):
+
+	data_w = []
 	data_x = []
 	data_y = []
 	rejected_sents = [] # A list to store 'rejected' sents, i.e. ones that were too short/long.
+	rejected_words = []
 	for sent in tagged_sents:
 
 		if cf.MODEL_TYPE == S2S:
@@ -26,31 +30,72 @@ def tagged_sents_to_numpy(tagged_sents, word_to_ix, tag_to_ix):
 		elif cf.MODEL_TYPE == S21:
 			words, tag = sent[0], sent[1]
 
-		if len(words) > cf.MAX_SENT_LENGTH or len(words) < cf.MIN_SENT_LENGTH:
+		if cf.GRANULARITY == WORD_LEVEL and (len(words) > cf.MAX_SENT_LENGTH or len(words) < cf.MIN_SENT_LENGTH):
 			rejected_sents.append(sent)
-			continue
+			#continue
 
-		wordz = np.zeros(cf.MAX_SENT_LENGTH, dtype=int)			
-		wordz[:len(words)] = np.asarray([word_to_ix[w] for w in words], )
-		data_x.append(wordz)
+		wordz = np.zeros(cf.MAX_SENT_LENGTH, dtype=int)
+		wordz[:len(words)] = np.asarray([word_to_ix[w] for w in words[:cf.MAX_SENT_LENGTH]], )
 
-		if cf.MODEL_TYPE == S2S:
-			tagz = np.zeros(cf.MAX_SENT_LENGTH, dtype=int)	
-			tagz[:len(tags)] = np.asarray([tag_to_ix[w] for w in tags], )
-			data_y.append(tagz)	
-		elif cf.MODEL_TYPE == S21:
-			tag   = sent[1]
-			data_y.append(tag_to_ix[tag])
+		if cf.GRANULARITY == WORD_LEVEL:			
+			if cf.MODEL_TYPE == S2S:
+				data_w.append([0])
+				data_x.append(wordz)
 
+				tagz = np.zeros(cf.MAX_SENT_LENGTH, dtype=int)	
+				tagz[:len(tags)] = np.asarray([wtag_to_ix[w] for w in tags[:cf.MAX_SENT_LENGTH]], )
+
+				data_y.append(tagz)	
+			elif cf.MODEL_TYPE == S21:
+				tag   = sent[1]
+				data_y.append(wtag_to_ix[tag])
+
+		elif cf.GRANULARITY in [CHAR_LEVEL, CHAR_AND_WORD_LEVEL]:
+			for i, (word, tag) in enumerate(sent):
+				if len(word) > cf.MAX_WORD_LENGTH:
+					rejected_words.append(sent)
+					continue
+				charz = np.zeros(cf.MAX_WORD_LENGTH, dtype=int)
+				charz[:min(len(word), cf.MAX_WORD_LENGTH)] = np.asarray([char_to_ix[c] for c in word[:cf.MAX_WORD_LENGTH]], ) # Trim words that are too long
+				ctagz = np.zeros(cf.MAX_WORD_LENGTH, dtype=int)	
+				ctagz[:min(len(tag), cf.MAX_WORD_LENGTH)] = np.asarray([ctag_to_ix[c] for c in tag[:cf.MAX_WORD_LENGTH]], )	# Trim tags that are too long
+
+				
+
+				# print i
+				# print max(0, i) , min(len(words), i+5)
+				# print word
+				# print [ix_to_word[w] for w in context_wordz]
+				# print ""
+				if cf.GRANULARITY == CHAR_LEVEL:
+					data_w.append([0])
+				elif cf.GRANULARITY == CHAR_AND_WORD_LEVEL:
+					words = [0, 0] + [word_to_ix[w[0]] for w in sent] + [0, 0]
+					context_wordz = words[max(0, i) : min(len(words), i+5)]	 # hardcoded to 5 for now
+					data_w.append(context_wordz)
+				data_x.append(charz)
+				data_y.append(ctagz)
 	
 	# If there are not enough sentences to create a set of perfectly-sized batches, append some batches that are all 0s.
 	# These will be ignored by the model.
 	if cf.MODEL_TYPE == S2S:
-		to_pad = cf.BATCH_SIZE - (len(data_x) % cf.BATCH_SIZE)
-		for i in range(to_pad):
-			data_x.append( np.zeros(cf.MAX_SENT_LENGTH, dtype = int))
-			data_y.append( np.zeros(cf.MAX_SENT_LENGTH, dtype = int))
-	return np.asarray(data_x), np.asarray(data_y), rejected_sents
+		if cf.GRANULARITY == WORD_LEVEL:
+			to_pad = cf.BATCH_SIZE - (len(data_x) % cf.BATCH_SIZE)
+			for i in range(to_pad):
+				data_w.append( np.asarray([0] ))
+				data_x.append( np.zeros(cf.MAX_SENT_LENGTH, dtype = int))
+				data_y.append( np.zeros(cf.MAX_SENT_LENGTH, dtype = int))
+		elif cf.GRANULARITY == CHAR_LEVEL:
+			to_pad = cf.BATCH_SIZE - (len(data_x) % cf.BATCH_SIZE)
+			for i in range(to_pad):
+				data_w.append( np.asarray([0] ))
+				data_x.append( np.zeros(cf.MAX_WORD_LENGTH, dtype = int))
+				data_y.append( np.zeros(cf.MAX_WORD_LENGTH, dtype = int))
+
+	# 	print len(data_x)
+	# 	print len(data_w)
+
+	return np.asarray(data_w), np.asarray(data_x), np.asarray(data_y), rejected_sents, rejected_words
 
 # Found at https://github.com/guillaumegenthial/sequence_tagging
 def get_trimmed_emb_vectors(filename):
@@ -66,7 +111,7 @@ def get_trimmed_emb_vectors(filename):
 
 # Build two separate data iterators: one for the training data, another for dev (validation).
 # Also retrieve a test dataset.
-def load_datasets(word_to_ix, tag_to_ix):
+def load_datasets(word_to_ix, wtag_to_ix, char_to_ix, ctag_to_ix, ix_to_char, ix_to_word):
 	data_iterators = { "train": None, "dev": None }
 	test_dataset = []
 	for i, dataset in enumerate(["train", "dev", "test"]):
@@ -77,8 +122,9 @@ def load_datasets(word_to_ix, tag_to_ix):
 			corpusReader = TabbedCorpusReader(cf.DATA_FOLDER, [[cf.TRAIN_FILENAME, cf.DEV_FILENAME, cf.TEST_FILENAME][i]])
 
 		tagged_sents = corpusReader.tagged_sents()
-		data_x, data_y, rejected_sents = tagged_sents_to_numpy(tagged_sents, word_to_ix, tag_to_ix)
-		myDataset = MyDataset(data_x, data_y)
+		data_w, data_x, data_y, rejected_sents, rejected_words = tagged_sents_to_numpy(tagged_sents, word_to_ix, wtag_to_ix, char_to_ix, ctag_to_ix, ix_to_char, ix_to_word)
+		myDataset = MyDataset(data_w, data_x, data_y)
+
 
 		if dataset == "test":
 			test_dataset = myDataset
@@ -92,37 +138,50 @@ def load_datasets(word_to_ix, tag_to_ix):
 			logger.info("Loaded %d %s batches.\n" % (len(data_iterator), dataset) +
 				"      (%d x %d = ~%d sentences total)" % (len(data_iterator), cf.BATCH_SIZE, len(data_iterator) * cf.BATCH_SIZE))
 		if len(rejected_sents) > 0:
-			logger.warning("%d of %d sentences were discluded from the %s set due to being too long or short." % (len(rejected_sents), len(tagged_sents) + len(rejected_sents), dataset))
+			logger.warning("%d of %d sentences from the %s set were trimmed due to being too long or short." % (len(rejected_sents), len(tagged_sents) + len(rejected_sents), dataset))
+		if len(rejected_words) > 0:
+			logger.warning("%d words from the %s set were trimmed due to being too long." % (len(rejected_words), dataset))
+
 	return data_iterators, test_dataset
 
 class MyDataset(Dataset):
-	def __init__(self, x, y):
+	def __init__(self, w, x, y):
 		super(MyDataset, self).__init__()
+		self.w = w
 		self.x = x
 		self.y = y
 
 	def __getitem__(self, ids):
-		return self.x[ids], self.y[ids]
+		return self.w[ids], self.x[ids], self.y[ids]
 
 	def __len__(self):
 		return self.x.shape[0]
 
 def load_data():
-	with open("asset/word_to_ix.pkl", 'r') as f:
+	with open("%s/word_to_ix.pkl" % cf.ASSET_FOLDER, 'r') as f:
 		word_to_ix = pkl.load(f)
-	with codecs.open("asset/ix_to_word.txt", 'r', 'utf-8') as f:
+	with codecs.open("%s/ix_to_word.txt" % cf.ASSET_FOLDER, 'r', 'utf-8') as f:
 		ix_to_word = [line.strip() for line in f]
-	with open("asset/tag_to_ix.pkl", 'r') as f:
-		tag_to_ix = pkl.load(f)
-	with codecs.open("asset/ix_to_tag.txt", 'r', 'utf-8') as f:
-		ix_to_tag = [line.strip() for line in f]
+	with open("%s/wtag_to_ix.pkl" % cf.ASSET_FOLDER, 'r') as f:
+		wtag_to_ix = pkl.load(f)
+	with codecs.open("%s/ix_to_wtag.txt" % cf.ASSET_FOLDER, 'r', 'utf-8') as f:
+		ix_to_wtag = [line.strip() for line in f]
+	with open("%s/char_to_ix.pkl" % cf.ASSET_FOLDER, 'r') as f:
+		char_to_ix = pkl.load(f)
+	with codecs.open("%s/ix_to_char.txt" % cf.ASSET_FOLDER, 'r', 'utf-8') as f:
+		ix_to_char = [line.strip() for line in f]
+	with open("%s/ctag_to_ix.pkl" % cf.ASSET_FOLDER, 'r') as f:
+		ctag_to_ix = pkl.load(f)
+	with codecs.open("%s/ix_to_ctag.txt" % cf.ASSET_FOLDER, 'r', 'utf-8') as f:
+		ix_to_ctag = [line.strip() for line in f]
 
-	data_iterators, test_dataset = load_datasets(word_to_ix, tag_to_ix)
 
-	if cf.USE_PRETRAINED_EMBEDDINGS:
+	data_iterators, test_dataset = load_datasets(word_to_ix, wtag_to_ix, char_to_ix, ctag_to_ix, ix_to_char, ix_to_word)
+
+	if cf.USE_PRETRAINED_WORD_EMBEDDINGS:
 		pretrained_embeddings = get_trimmed_emb_vectors(cf.EMB_TRIMMED_FILENAME)
 		logger.info("Loaded %d pretrained embeddings." % len(pretrained_embeddings)) 
 	else:
 		pretrained_embeddings = None
 
-	return data_iterators, test_dataset, pretrained_embeddings, word_to_ix, ix_to_word, tag_to_ix, ix_to_tag
+	return data_iterators, test_dataset, pretrained_embeddings, word_to_ix, ix_to_word, wtag_to_ix, ix_to_wtag, char_to_ix, ix_to_char, ctag_to_ix, ix_to_ctag

@@ -1,5 +1,5 @@
 import logging as logger
-import sys, torch
+import sys, torch, os
 from colorama import Fore, Back, Style
 # logger.basicConfig(format=Fore.CYAN + '%(levelname)s: ' + Style.RESET_ALL + '%(message)s', level=logger.DEBUG)
 # logger.basicConfig(format=Fore.GREEN + '%(levelname)s: ' + Style.RESET_ALL + '%(message)s', level=logger.INFO)
@@ -30,14 +30,20 @@ logger.root.setLevel(logger.DEBUG)
 S2S = "Sequence to sequence"
 S21 = "Sequence to one"
 
+CHAR_LEVEL = "Character level"
+WORD_LEVEL = "Word level"
+CHAR_AND_WORD_LEVEL = "Character and word-level"
+
 class Config():
 
 	def __init__(self):
 
+		self.MODEL_NAME 		= "Deep Encoding LSTM (DMP)"
+
 		self.MODEL_TYPE 		= S2S   # Can be either "S2S" (sequence to sequence) or "S21" (sequence to one).
 
 		self.EMBEDDING_DIM 		= 300	# The number of dimensions to use for embeddings. Usually 300.
-		self.HIDDEN_DIM 		= 300	# The number of dimensions of the hidden layer.
+		self.HIDDEN_DIM 		= 200	# The number of dimensions of the hidden layer.
 		self.BATCH_SIZE 		= 100	# The batch size (larger uses more memory but is faster)
 		self.LEARNING_RATE		= 0.1	# The learning rate
 
@@ -46,16 +52,19 @@ class Config():
 		self.MAX_EPOCHS 		= 3000	# The maximum number of epochs to run.
 		self.EARLY_STOP			= False  # Whether to stop when no progress has been made for the last 10 epochs. (i.e. loss has not improved)
 
-		self.USE_PRETRAINED_EMBEDDINGS = True
+		self.MIN_WORD_LENGTH	= 1
+		self.MAX_WORD_LENGTH	= 25
 
-		self.CHARACTER_LEVEL 	= False
+		self.USE_PRETRAINED_WORD_EMBEDDINGS = True
+
+		self.GRANULARITY		= CHAR_LEVEL
 
 		# self.DATA_FOLDER		= 'data/datasets/twitter'
 		# self.TRAIN_FILENAME		= 'train.tsv'
 		# self.DEV_FILENAME		= 'dev.tsv'
 		# self.TEST_FILENAME		= 'test.tsv'
 
-		self.DATA_FOLDER		= 'data/datasets/twitter_lexnorm_word'
+		self.DATA_FOLDER		= 'data/datasets/dmp_lexnorm_word'
 		self.TRAIN_FILENAME		= 'train.txt'
 		self.DEV_FILENAME		= 'test.txt'
 		self.TEST_FILENAME		= 'test.txt'
@@ -65,23 +74,31 @@ class Config():
 		#self.DEV_FILENAME		= 'dev.txt'
 		#self.TEST_FILENAME		= 'test.txt'
 
-		self.EMBEDDINGS_FOLDER  = 'data/fasttext'
-		
-		self.EMB_VEC_FILENAME   = 'data/fasttext/wiki-news-300d-1M-subword.vec'
-		self.EMB_BIN_FILENAME   = 'data/fasttext/wiki-news-300d-1M-subword.bin'
-
-
-		#self.EMB_VEC_FILENAME   = 'data/fasttext/cc.en.300.vec'
-		#self.EMB_BIN_FILENAME   = 'data/fasttext/cc.en.300.bin'
-
-		self.EMB_OOV_FILENAME     = 'asset/oov_embeddings.vec'
-		self.EMB_TRIMMED_FILENAME = 'asset/fasttext_trimmed.npz'
-		self.OOV_TOKENS_FILENAME  = 'asset/oov_tokens.txt'
-
 		#self.DATASET			= self.TRAIN_DATA
 
 		#self.DATA_FILENAME		= 'train.txt'
 		# self.SOS_TOKEN = "<SOS>"
 		# self.EOS_TOKEN = "<EOS>"
 
+		self.EMBEDDINGS_FOLDER  = 'data/fasttext'
+		
+		self.EMB_VEC_FILENAME   = 'data/fasttext/wiki.en.vec'
+		self.EMB_BIN_FILENAME   = 'data/fasttext/wiki.en.bin'
+
+
+		#self.EMB_VEC_FILENAME   = 'data/fasttext/cc.en.300.vec'
+		#self.EMB_BIN_FILENAME   = 'data/fasttext/cc.en.300.bin'		
+
+		self.ASSET_FOLDER = "models/%s/asset" % self.MODEL_NAME
+
+		self.EMB_OOV_FILENAME     = '%s/oov_embeddings.vec' % self.ASSET_FOLDER
+		self.EMB_TRIMMED_FILENAME = '%s/fasttext_trimmed.npz' % self.ASSET_FOLDER
+		self.OOV_TOKENS_FILENAME  = '%s/oov_tokens.txt' % self.ASSET_FOLDER
+
+	
+		if not os.path.exists("models/%s" % self.MODEL_NAME):
+			os.makedirs("models/%s" % self.MODEL_NAME)
+			os.makedirs("models/%s/asset" % self.MODEL_NAME)
+			os.makedirs("models/%s/model_trained" % self.MODEL_NAME)
+			os.makedirs("models/%s/predictions" % self.MODEL_NAME)
 

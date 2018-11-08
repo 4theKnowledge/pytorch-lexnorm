@@ -10,28 +10,57 @@ import os
 import codecs
 from data_utils import TabbedCorpusReader
 
-# Generate word_to_ix and tag_to_ix for tagged_sents (which are in Conll2000 format).
-# Also generate the inverse ix_to_word and ix_to_tag.
-def get_word_and_tag_ids(tagged_sents):
+
+
+
+
+def get_char_and_chartag_ids(tagged_sents):
+	if cf.MODEL_TYPE == S21:
+		logger.warn("S21 model not supported for chars yet.")
+	char_to_ix = { "<PAD>": 0 }
+	ix_to_char = [ "<PAD>" ]
+
+	if cf.MODEL_TYPE == S2S:
+		ctag_to_ix = { "<PAD>" : 0}
+		ix_to_ctag = [ "<PAD>" ]
+	else:
+		ctag_to_ix = {}
+		ix_to_ctag = []
+
+	for sent in tagged_sents:		
+		for word, tag in sent:
+			for c in word:
+				if c not in char_to_ix:
+					char_to_ix[c] = len(char_to_ix)
+					ix_to_char.append(c) 
+			for c in tag:
+				if c not in ctag_to_ix:
+					ctag_to_ix[c] = len(ctag_to_ix)
+					ix_to_ctag.append(c)
+	return char_to_ix, ix_to_char, ctag_to_ix, ix_to_ctag
+
+
+# Generate word_to_ix and wtag_to_ix for tagged_sents (which are in Conll2000 format).
+# Also generate the inverse ix_to_word and ix_to_wtag.
+def get_word_and_wordtag_ids(tagged_sents):
 	word_to_ix = { "<PAD>": 0 }
 	ix_to_word = [ "<PAD>" ]
 
 	if cf.MODEL_TYPE == S2S:
-		tag_to_ix = { "<PAD>" : 0}
-		ix_to_tag = [ "<PAD>" ]
+		wtag_to_ix = { "<PAD>" : 0}
+		ix_to_wtag = [ "<PAD>" ]
 	else:
-		tag_to_ix = {}
-		ix_to_tag = []
+		wtag_to_ix = {}
+		ix_to_wtag = []
 	for sent in tagged_sents:
-
 		if cf.MODEL_TYPE == S2S:
 			for word, tag in sent:
 				if word not in word_to_ix:
 					word_to_ix[word] = len(word_to_ix)
 					ix_to_word.append(word)
-				if tag not in tag_to_ix:
-					tag_to_ix[tag] = len(tag_to_ix)
-					ix_to_tag.append(tag)
+				if tag not in wtag_to_ix:
+					wtag_to_ix[tag] = len(wtag_to_ix)
+					ix_to_wtag.append(tag)
 
 		elif cf.MODEL_TYPE == S21:			
 			for word in sent[0]:
@@ -39,14 +68,14 @@ def get_word_and_tag_ids(tagged_sents):
 					word_to_ix[word] = len(word_to_ix)
 					ix_to_word.append(word)
 			tag = sent[1]
-			if tag not in tag_to_ix:
-				tag_to_ix[tag] = len(tag_to_ix)
-				ix_to_tag.append(tag)
+			if tag not in wtag_to_ix:
+				wtag_to_ix[tag] = len(wtag_to_ix)
+				ix_to_wtag.append(tag)
 	#word_to_ix[SOS_TOKEN] = len(word_to_ix)
 	#word_to_ix[EOS_TOKEN] = len(word_to_ix)
 	#ix_to_word = [k for k, v in word_to_ix.iteritems()]
-	#ix_to_tag = [k for k, v in tag_to_ix.iteritems()]
-	return word_to_ix, ix_to_word, tag_to_ix, ix_to_tag
+	#ix_to_wtag = [k for k, v in wtag_to_ix.iteritems()]
+	return word_to_ix, ix_to_word, wtag_to_ix, ix_to_wtag
 
 # Remove any sents that are too short or long.
 def clean_sentences(sentences):
@@ -61,7 +90,7 @@ def clean_sentences(sentences):
 # 	return torch.tensor(idxs, dtype=torch.long, device=device)
 
 
-# Found at https://github.com/guillaumegenthial/sequence_tagging
+# Found at https://github.com/guillaumegenthial/sequence_wtagging
 def get_emb_vocab(filename):
 	logger.info("Loading embedding vocab...")
 	vocab = set()
@@ -73,7 +102,7 @@ def get_emb_vocab(filename):
 	return vocab
 
 
-# Found at https://github.com/guillaumegenthial/sequence_tagging
+# Found at https://github.com/guillaumegenthial/sequence_wtagging
 def export_trimmed_embedding_vectors(vocab, oov_embeddings_filename, emb_filename, trimmed_filename, dim):
 	"""
 	Saves glove vectors in numpy array
@@ -129,23 +158,29 @@ def generate_oov_embeddings(ix_to_word, emb_vocab, emb_model="fasttext"):
 	logger.info("Generating embeddings for tokens not found in the pretrained embeddings...")
 	with codecs.open(cf.OOV_TOKENS_FILENAME, 'w', 'utf-8') as f:
 		f.write("\n".join(oov_tokens))
-	os.system("fasttext print-word-vectors %s < %s > %s" % (cf.EMB_BIN_FILENAME, cf.OOV_TOKENS_FILENAME, cf.EMB_OOV_FILENAME))
+	os.system("fasttext print-word-vectors \"%s\" < \"%s\" > \"%s\"" % (cf.EMB_BIN_FILENAME, cf.OOV_TOKENS_FILENAME, cf.EMB_OOV_FILENAME))
 
 
 # Save all data to the relevant files.
-def save_data_to_files(tagged_sents, word_to_ix, tag_to_ix, ix_to_word, ix_to_tag):
-	with open("asset/tagged_sents_all.pkl", 'w') as f:
+def save_data_to_files(tagged_sents, word_to_ix, wtag_to_ix, ix_to_word, ix_to_wtag, char_to_ix, ctag_to_ix, ix_to_char, ix_to_ctag):
+	with open("%s/tagged_sents_all.pkl" % cf.ASSET_FOLDER, 'w') as f:
 	 	pkl.dump(list(tagged_sents), f)
-	with open("asset/word_to_ix.pkl", 'w') as f:
+	with open("%s/word_to_ix.pkl" % cf.ASSET_FOLDER, 'w') as f:
 		pkl.dump(word_to_ix, f)
-	with open("asset/tag_to_ix.pkl", 'w') as f:
-		pkl.dump(tag_to_ix, f)
-	with codecs.open("asset/ix_to_word.txt", 'w', 'utf-8') as f:
+	with open("%s/wtag_to_ix.pkl" % cf.ASSET_FOLDER, 'w') as f:
+		pkl.dump(wtag_to_ix, f)
+	with codecs.open("%s/ix_to_word.txt" % cf.ASSET_FOLDER, 'w', 'utf-8') as f:
 		f.write("\n".join(ix_to_word))	
-	with codecs.open("asset/ix_to_tag.txt", 'w', 'utf-8') as f:
-		f.write("\n".join(ix_to_tag))
-
-
+	with codecs.open("%s/ix_to_wtag.txt" % cf.ASSET_FOLDER, 'w', 'utf-8') as f:
+		f.write("\n".join(ix_to_wtag))
+	with open("%s/char_to_ix.pkl" % cf.ASSET_FOLDER, 'w') as f:
+		pkl.dump(char_to_ix, f)
+	with open("%s/ctag_to_ix.pkl" % cf.ASSET_FOLDER, 'w') as f:
+		pkl.dump(ctag_to_ix, f)
+	with codecs.open("%s/ix_to_char.txt" % cf.ASSET_FOLDER, 'w', 'utf-8') as f:
+		f.write("\n".join(ix_to_char))	
+	with codecs.open("%s/ix_to_ctag.txt" % cf.ASSET_FOLDER, 'w', 'utf-8') as f:
+		f.write("\n".join(ix_to_ctag))
 
 
 def main():
@@ -157,14 +192,15 @@ def main():
 	tagged_sents = corpusReader.tagged_sents()
 
 	logger.info("%d sentences loaded." % len(tagged_sents))
-	tagged_sents = clean_sentences(tagged_sents)
-	logger.info("%d sentences after cleaning (removing short/long sentences)." % len(tagged_sents))
+	#tagged_sents = clean_sentences(tagged_sents)
+	#logger.info("%d sentences after cleaning (removing short/long sentences)." % len(tagged_sents))
 
-	word_to_ix, ix_to_word, tag_to_ix, ix_to_tag = get_word_and_tag_ids(tagged_sents)
+	word_to_ix, ix_to_word, wtag_to_ix, ix_to_wtag = get_word_and_wordtag_ids(tagged_sents)
+	char_to_ix, ix_to_char, ctag_to_ix, ix_to_ctag = get_char_and_chartag_ids(tagged_sents)
 
-	save_data_to_files(tagged_sents, word_to_ix, tag_to_ix, ix_to_word, ix_to_tag)
+	save_data_to_files(tagged_sents, word_to_ix, wtag_to_ix, ix_to_word, ix_to_wtag, char_to_ix, ctag_to_ix, ix_to_char, ix_to_ctag)
 
-	if cf.USE_PRETRAINED_EMBEDDINGS:
+	if cf.USE_PRETRAINED_WORD_EMBEDDINGS:
 		# Get all words in the embedding vocab
 		emb_vocab = get_emb_vocab(cf.EMB_VEC_FILENAME)
 

@@ -17,10 +17,11 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 class LSTMTagger(nn.Module):
 
-	def __init__(self, model_type, embedding_dim, hidden_dim, vocab_size_char, vocab_size_word, tag_size, batch_size, max_word_length, max_sent_length, pretrained_embeddings=None):
+	def __init__(self, model_type, word_embedding_dim, char_embedding_dim, hidden_dim, vocab_size_char, vocab_size_word, tag_size, batch_size, max_word_length, max_sent_length, pretrained_embeddings=None):
 		super(LSTMTagger, self).__init__()
 
-		self.embedding_dim 	 = embedding_dim
+		self.word_embedding_dim = word_embedding_dim
+		self.char_embedding_dim = char_embedding_dim
 		self.hidden_dim 	 = hidden_dim
 		self.model_type 	 = model_type
 		self.batch_size 	 = batch_size
@@ -30,9 +31,9 @@ class LSTMTagger(nn.Module):
 		self.max_word_length = max_word_length
 		self.max_sent_length = max_sent_length
 
-		self.char_embeddings = nn.Embedding(vocab_size_char, embedding_dim)
+		self.char_embeddings = nn.Embedding(vocab_size_char, char_embedding_dim)
 
-		self.word_embeddings = nn.Embedding(vocab_size_word, embedding_dim)		
+		self.word_embeddings = nn.Embedding(vocab_size_word, word_embedding_dim)		
 		if pretrained_embeddings is not None:
 			self.word_embeddings.weight.data.copy_(torch.from_numpy(pretrained_embeddings))
 			self.word_embeddings.weight.requires_grad = False
@@ -41,7 +42,7 @@ class LSTMTagger(nn.Module):
 
 		# The LSTM takes word embeddings as inputs, and outputs hidden states
 		# with dimensionality hidden_dim.
-		self.lstm = nn.LSTM(embedding_dim, hidden_dim, bidirectional = True, num_layers = 2, dropout = 0.5)
+		self.lstm = nn.LSTM(word_embedding_dim, hidden_dim, bidirectional = True, num_layers = 2, dropout = 0.5)
 
 		# The linear layer that maps from hidden state space to tag space
 		self.hidden2tag = nn.Linear(hidden_dim * 2, tag_size)
@@ -186,8 +187,8 @@ class CombinedLSTMTagger(LSTMTagger):
 		self.max_w_length = self.max_sent_length
 		self.max_x_length = self.max_word_length
 
-		self.lstm_word = nn.LSTM(self.embedding_dim, self.hidden_dim, bidirectional = True, num_layers = 2, dropout = 0.5)
-		self.lstm_char = nn.LSTM(self.embedding_dim, self.hidden_dim, bidirectional = True, num_layers = 2, dropout = 0.5)
+		self.lstm_word = nn.LSTM(self.word_embedding_dim, self.hidden_dim, bidirectional = True, num_layers = 2, dropout = 0.5)
+		self.lstm_char = nn.LSTM(self.char_embedding_dim, self.hidden_dim, bidirectional = True, num_layers = 2, dropout = 0.5)
 		
 		self.hidden_word = self.init_hidden()
 		self.hidden_char = self.init_hidden()
@@ -198,10 +199,12 @@ class CombinedLSTMTagger(LSTMTagger):
 
 		# self.attn_combine = nn.Linear(self.hidden_size * 2, self.hidden_size)
 
-		self.attention = new_parameter(self.batch_size, self.embedding_dim, 1)
+		self.attention = new_parameter(self.batch_size, self.word_embedding_dim, 1)
 
-		self.bil = nn.Bilinear(self.max_sent_length * self.batch_size, self.max_word_length * self.batch_size, self.max_word_length * self.batch_size)#self.hidden_dim)#, self.tag_size)
+		#self.bil = nn.Bilinear(self.max_sent_length * self.batch_size, self.max_word_length * self.batch_size, self.max_word_length * self.batch_size)#self.hidden_dim)#, self.tag_size)
 
+
+		self.lstm2hidden = nn.Linear((self.max_sent_length * self.batch_size + self.max_word_length * self.batch_size ), self.batch_size * self.max_word_length)
 
 		#self.wordLstmLinear = nn.Linear(self.hidden_dim * 2, self.batch_size * self.max_word_length)
 		self.hidden2tag = nn.Linear(self.hidden_dim * 2, self.tag_size)#self.tag_size)
@@ -223,6 +226,8 @@ class CombinedLSTMTagger(LSTMTagger):
 		# 1.1 Attention mechanism
 		# https://pytorch-nlp-tutorial-ny2018.readthedocs.io/en/latest/day2/patterns/attention.html
 		attention_score = torch.matmul(batch_w, self.attention).squeeze()
+		#print attention_score
+		#print attention_score.size()
 		attention_score = F.softmax(attention_score, dim=1).view(batch_w.size(0), batch_w.size(1), 1)
 		scored_w = batch_w * attention_score
 
@@ -249,6 +254,17 @@ class CombinedLSTMTagger(LSTMTagger):
 		batch_w = batch_w.contiguous().view(-1, batch_w.shape[2]).transpose_(0, 1)
 		batch_x = batch_x.contiguous().view(-1, batch_x.shape[2]).transpose_(0, 1)#.transpose_(0, 1)
 
+		#print batch_w.size()
+		#print batch_x.size()
+
+		#print "000"
+		batch = torch.cat((batch_w, batch_x), dim=1)
+
+		#print batch.size()
+
+		batch = self.lstm2hidden(batch).transpose_(0, 1)
+
+		#print batch.size()
 
         # now, sum across dim 1 to get the expected feature vector
 		#condensed_w = torch.sum(scored_w, dim=1)
@@ -288,12 +304,13 @@ class CombinedLSTMTagger(LSTMTagger):
 
 		#print batch.shape
 
-		batch = self.bil(batch_w, batch_x).transpose_(0, 1)
+		#batch = self.bil(batch_w, batch_x).transpose_(0, 1)
 
 		#print batch.size(), "bil"
 
 		batch = self.hidden2tag(batch)
 
+		#print batch.size()
 		#print batch.size(), "h2t"
 
 		#batch_w = self.attn(batch_w)

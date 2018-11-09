@@ -116,7 +116,7 @@ def export_trimmed_embedding_vectors(vocab, oov_embeddings_filename, emb_filenam
 	logger.info("Generating trimmed embedding vectors...")
 	embeddings = np.zeros([len(vocab), dim])
 
-	embeddings[0] = np.zeros(cf.EMBEDDING_DIM) # add zero embeddings for padding
+	embeddings[0] = np.zeros(cf.WORD_EMBEDDING_DIM) # add zero embeddings for padding
 
 	for filename in [emb_filename, oov_embeddings_filename]:
 		if not os.path.isfile(filename):
@@ -208,7 +208,7 @@ def main():
 		generate_oov_embeddings(ix_to_word, emb_vocab)
 
 		# Combine OOV embeddings with IV embeddings and export them to a file
-		export_trimmed_embedding_vectors(word_to_ix, cf.EMB_OOV_FILENAME, cf.EMB_VEC_FILENAME, cf.EMB_TRIMMED_FILENAME, cf.EMBEDDING_DIM)
+		export_trimmed_embedding_vectors(word_to_ix, cf.EMB_OOV_FILENAME, cf.EMB_VEC_FILENAME, cf.EMB_TRIMMED_FILENAME, cf.WORD_EMBEDDING_DIM)
 
 	logger.info("Data building complete.")
 

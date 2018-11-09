@@ -54,7 +54,7 @@ def evaluate_model(model, dev_iterator, word_to_ix, ix_to_word, wtag_to_ix, ix_t
 					if cf.GRANULARITY in [CHAR_LEVEL, CHAR_AND_WORD_LEVEL]:
 						s = [[], [], [], [], []]
 					for j, token_ix in enumerate(sent):						
-						if cf.GRANULARITY in [CHAR_LEVEL, CHAR_AND_WORD_LEVEL] or word_ix > 0:			
+						if cf.GRANULARITY in [CHAR_LEVEL, CHAR_AND_WORD_LEVEL] or token_ix > 0:			
 
 
 							pred = tag_scores[i][j]
@@ -71,41 +71,64 @@ def evaluate_model(model, dev_iterator, word_to_ix, ix_to_word, wtag_to_ix, ix_t
 								char_ix = token_ix
 								s[0].append(tag_color + ix_to_ctag[pi] + Style.RESET_ALL)
 								s[1].append(ix_to_char[char_ix])
-								s[2].append(ix_to_ctag[pi])
-								s[3].append(ix_to_ctag[ci])
-								s[4].append(ix_to_char[char_ix])
-							else:	
+
+								s[2].append(ix_to_ctag[pi])	# predicted char
+								s[3].append(ix_to_ctag[ci])	# correct char
+								s[4].append(ix_to_char[char_ix])	# original char
+							else:
+
 								word_ix = token_ix
+
+								# ci is the index of the correct normalisation tag
+								# pi is the index of the tag that was predicted
+								# word_index is the index of the word in the vocabulary
+
+
+
+
 								s.append(word_color + ix_to_word[word_ix] + Style.DIM + (("/" + Style.RESET_ALL + tag_color + ix_to_wtag[pi]) if ci > 0 else "") + Style.RESET_ALL)
 
-								if pi != word_ix and ci == pi:
+								# if ci == wtag_to_ix["<SELF>"]:
+								# 	word_tag_index = wtag_to_ix["<SELF>"]
+								# else:
+								# 	word_tag_ix = wtag_to_ix[ix_to_word[word_ix]]
+
+								original_word = ix_to_word[word_ix]								
+								predicted_word = ix_to_wtag[pi]
+								correct_word = ix_to_wtag[ci]
+
+								if ci == wtag_to_ix["<SELF>"]:
+									correct_word = original_word
+								if pi == wtag_to_ix["<SELF>"]:
+									predicted_word = original_word
+
+								wordlist.append(original_word)
+								predlist.append(predicted_word)
+								corrlist.append(correct_word)
+
+								if predicted_word != original_word and correct_word == predicted_word:
 									correct_preds += 1						  
-								if ci != word_ix:
+								if correct_word != original_word:
 									total_correctable += 1
-								if pi != word_ix:
+								if predicted_word != original_word:
 									total_preds += 1
 
-								wordlist.append(ix_to_word[word_ix])
-								predlist.append(ix_to_wtag[pi])
-								corrlist.append(ix_to_wtag[ci])
-
+								
 
 
 
 					if cf.GRANULARITY in [CHAR_LEVEL, CHAR_AND_WORD_LEVEL]:						
 						# Calculate the f score with respect to the words, not the characters
-						pi 		= "".join(s[2])
-						ci 		= "".join(s[3])
-						word_ix = "".join(s[4])
+						predicted_word = "".join(s[2])
+						correct_word   = "".join(s[3])
+						original_word  = "".join(s[4])
 
-
-						#print pi, ci, word_ix
-						if pi != word_ix and ci == pi:
+						if predicted_word != original_word and correct_word == predicted_word:
 							correct_preds += 1						  
-						if ci != word_ix:
+						if correct_word != original_word:
 							total_correctable += 1
-						if pi != word_ix:
-							total_preds += 1	
+						if predicted_word != original_word:
+							total_preds += 1
 
 						#print correct_preds, total_correctable, total_preds
 				

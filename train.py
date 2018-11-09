@@ -34,7 +34,8 @@ def main():
 		model_class = CombinedLSTMTagger
 
 	model = model_class(cf.MODEL_TYPE,
-					   cf.EMBEDDING_DIM,
+					   cf.WORD_EMBEDDING_DIM,
+					   cf.CHAR_EMBEDDING_DIM,
 					   cf.HIDDEN_DIM,
 					   len(char_to_ix),
 					   len(word_to_ix),

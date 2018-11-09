@@ -91,6 +91,8 @@ def tagged_sents_to_numpy(tagged_sents, word_to_ix, wtag_to_ix, char_to_ix, ctag
 				data_w.append( np.asarray([0] ))
 				data_x.append( np.zeros(cf.MAX_WORD_LENGTH, dtype = int))
 				data_y.append( np.zeros(cf.MAX_WORD_LENGTH, dtype = int))
+		elif cf.GRANULARITY == CHAR_AND_WORD_LEVEL:
+			logger.warn("Batch padding not yet implemented for CHAR_AND_WORD_LEVEL model.")
 
 	# 	print len(data_x)
 	# 	print len(data_w)

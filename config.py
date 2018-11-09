@@ -38,7 +38,7 @@ class Config():
 
 	def __init__(self):
 
-		self.MODEL_NAME 		= "Michael's LSTM (DMP Self)"
+		self.MODEL_NAME 		= "Michael's LSTM (Twitter Self)"
 
 		self.MODEL_TYPE 		= S2S   # Can be either "S2S" (sequence to sequence) or "S21" (sequence to one).
 
@@ -51,7 +51,7 @@ class Config():
 		self.MIN_WORD_LENGTH	= 1
 		self.MAX_WORD_LENGTH	= 25
 		self.MIN_SENT_LENGTH 	= 1		# The minimum length of a sentence. Sentences smaller than this will not be trained on.
-		self.MAX_SENT_LENGTH 	= 60	# The maximum length of a sentence. Sentences larger than this will not be trained on.
+		self.MAX_SENT_LENGTH 	= 30	# The maximum length of a sentence. Sentences larger than this will not be trained on.
 		self.MAX_EPOCHS 		= 3000	# The maximum number of epochs to run.
 		self.EARLY_STOP			= False  # Whether to stop when no progress has been made for the last 10 epochs. (i.e. loss has not improved)
 
@@ -69,7 +69,7 @@ class Config():
 		# self.DEV_FILENAME		= 'dev.tsv'
 		# self.TEST_FILENAME		= 'test.tsv'
 
-		self.DATA_FOLDER		= 'data/datasets/dmp_lexnorm_word_self'
+		self.DATA_FOLDER		= 'data/datasets/twitter_lexnorm_word_self'
 		self.TRAIN_FILENAME		= 'train.txt'
 		#self.DEV_FILENAME		= 'test.txt'
 		self.TEST_FILENAME		= 'test.txt'

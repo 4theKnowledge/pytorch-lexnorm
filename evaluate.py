@@ -9,7 +9,7 @@ from colorama import Fore, Back, Style
 def print_sentence():
 	pass
 
-def evaluate_model(model, dev_iterator, word_to_ix, ix_to_word, wtag_to_ix, ix_to_wtag, char_to_ix, ix_to_char, ctag_to_ix, ix_to_ctag, epoch_number, print_output=False):
+def evaluate_model(model, test_iterator, word_to_ix, ix_to_word, wtag_to_ix, ix_to_wtag, char_to_ix, ix_to_char, ctag_to_ix, ix_to_ctag, epoch_number, print_output=False):
 
 	correct_preds = 0.0
 	total_preds = 0.0
@@ -25,7 +25,7 @@ def evaluate_model(model, dev_iterator, word_to_ix, ix_to_word, wtag_to_ix, ix_t
 		if print_output:
 			print ""
 			logger.info("Test set evaluation: ")
-		for (bi, (batch_w, batch_x, batch_y)) in enumerate(dev_iterator):
+		for (bi, (batch_w, batch_x, batch_y)) in enumerate(test_iterator):
 			# Ignore batch if it is not the same size as the others (happens at the end sometimes)
 			if len(batch_x) != cf.BATCH_SIZE:
 				logger.warn("An evaluation batch did not have the correct number of sentences.")
@@ -91,7 +91,7 @@ def evaluate_model(model, dev_iterator, word_to_ix, ix_to_word, wtag_to_ix, ix_t
 								if correct_word == original_word and predicted_word == correct_word:
 									tag_color = Style.DIM
 
-								s.append(word_color + original_word + Style.DIM + (("/" + Style.RESET_ALL + tag_color + wtag_to_ix[pi]) if ci > 0 else "") + Style.RESET_ALL)
+								s.append(word_color + original_word + Style.DIM + (("/" + Style.RESET_ALL + tag_color + ix_to_wtag[pi]) if ci > 0 else "") + Style.RESET_ALL)
 
 
 								wordlist.append(original_word)

@@ -224,7 +224,7 @@ def main():
 
 	tagged_sents = corpusReader.tagged_sents()
 
-	#test_unique_wordtags, test_unique_chartags = get_unique_test_tag_set()
+	test_unique_wordtags, test_unique_chartags = get_unique_test_tag_set()
 
 	logger.info("%d sentences loaded." % len(tagged_sents))
 	#tagged_sents = clean_sentences(tagged_sents)

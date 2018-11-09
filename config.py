@@ -38,7 +38,7 @@ class Config():
 
 	def __init__(self):
 
-		self.MODEL_NAME 		= "Michael's LSTM (Twitter Self)"
+		self.MODEL_NAME 		= "Michael's LSTM (DMP Self)"
 
 		self.MODEL_TYPE 		= S2S   # Can be either "S2S" (sequence to sequence) or "S21" (sequence to one).
 
@@ -69,7 +69,7 @@ class Config():
 		# self.DEV_FILENAME		= 'dev.tsv'
 		# self.TEST_FILENAME		= 'test.tsv'
 
-		self.DATA_FOLDER		= 'data/datasets/dmp_self_lexnorm_word'
+		self.DATA_FOLDER		= 'data/datasets/dmp_lexnorm_word_self'
 		self.TRAIN_FILENAME		= 'train.txt'
 		#self.DEV_FILENAME		= 'test.txt'
 		self.TEST_FILENAME		= 'test.txt'

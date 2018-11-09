@@ -11,7 +11,9 @@ import codecs
 from data_utils import TabbedCorpusReader
 
 
-
+# Get all unique word tags and char tags in the test set.
+# This prevents them from being added to the list of possible prediction tags later on.
+# Theoretically the model would never predict them anyway, but it's probably best to remove them just to make sure.
 def get_unique_test_tag_set():
 
 	logger.info("Building set of testset-unique tags...")
@@ -31,14 +33,11 @@ def get_unique_test_tag_set():
 				for char in tag:
 					train_chartags.add(char)
 
-	#print train_chartags
-
 	test_unique_wordtags = set()
 	test_unique_chartags = set()
 	for sent in tagged_sents_test:
 		for word, tag in sent:
 			if tag != "<PAD>" and tag != "<SELF>":
-
 				if tag not in train_wordtags:
 					test_unique_wordtags.add(tag)				
 					for char in tag:
@@ -46,11 +45,9 @@ def get_unique_test_tag_set():
 							test_unique_chartags.add(char)
 	
 	logger.info("%d unique word tags and %d unique char tags found in the test dataset." % (len(test_unique_wordtags), len(test_unique_chartags)))
-
-	#corpusReader = ConllCorpusReader(cf.DATA_FOLDER, [cf.TEST_FILENAME], ['words', 'pos'])
 	return test_unique_wordtags, test_unique_chartags
 
-def get_char_and_chartag_ids(tagged_sents, test_unique_chartags):
+def get_char_and_chartag_ids(tagged_sents):
 	if cf.MODEL_TYPE == S21:
 		logger.warn("S21 model not supported for chars yet.")
 	char_to_ix = { "<PAD>": 0 }
@@ -70,7 +67,7 @@ def get_char_and_chartag_ids(tagged_sents, test_unique_chartags):
 					char_to_ix[c] = len(char_to_ix)
 					ix_to_char.append(c) 
 			for c in tag:
-				if c not in ctag_to_ix and c not in test_unique_chartags:
+				if c not in ctag_to_ix: # and c not in test_unique_chartags:
 					ctag_to_ix[c] = len(ctag_to_ix)
 					ix_to_ctag.append(c)
 	return char_to_ix, ix_to_char, ctag_to_ix, ix_to_ctag
@@ -78,7 +75,7 @@ def get_char_and_chartag_ids(tagged_sents, test_unique_chartags):
 
 # Generate word_to_ix and wtag_to_ix for tagged_sents (which are in Conll2000 format).
 # Also generate the inverse ix_to_word and ix_to_wtag.
-def get_word_and_wordtag_ids(tagged_sents, test_unique_wordtags):
+def get_word_and_wordtag_ids(tagged_sents):
 	word_to_ix = { "<PAD>": 0 }
 	ix_to_word = [ "<PAD>" ]
 
@@ -94,7 +91,7 @@ def get_word_and_wordtag_ids(tagged_sents, test_unique_wordtags):
 				if word not in word_to_ix:
 					word_to_ix[word] = len(word_to_ix)
 					ix_to_word.append(word)
-				if tag not in wtag_to_ix and tag not in test_unique_wordtags:
+				if tag not in wtag_to_ix: # and tag not in test_unique_wordtags:
 					wtag_to_ix[tag] = len(wtag_to_ix)
 					ix_to_wtag.append(tag)
 
@@ -227,14 +224,14 @@ def main():
 
 	tagged_sents = corpusReader.tagged_sents()
 
-	test_unique_wordtags, test_unique_chartags = get_unique_test_tag_set()
+	#test_unique_wordtags, test_unique_chartags = get_unique_test_tag_set()
 
 	logger.info("%d sentences loaded." % len(tagged_sents))
 	#tagged_sents = clean_sentences(tagged_sents)
 	#logger.info("%d sentences after cleaning (removing short/long sentences)." % len(tagged_sents))
 
-	word_to_ix, ix_to_word, wtag_to_ix, ix_to_wtag = get_word_and_wordtag_ids(tagged_sents, test_unique_wordtags)
-	char_to_ix, ix_to_char, ctag_to_ix, ix_to_ctag = get_char_and_chartag_ids(tagged_sents, test_unique_chartags)
+	word_to_ix, ix_to_word, wtag_to_ix, ix_to_wtag = get_word_and_wordtag_ids(tagged_sents) #, test_unique_wordtags)
+	char_to_ix, ix_to_char, ctag_to_ix, ix_to_ctag = get_char_and_chartag_ids(tagged_sents) #, test_unique_chartags)
 
 	save_data_to_files(tagged_sents, word_to_ix, wtag_to_ix, ix_to_word, ix_to_wtag, char_to_ix, ctag_to_ix, ix_to_char, ix_to_ctag)
 

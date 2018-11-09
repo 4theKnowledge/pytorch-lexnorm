@@ -23,7 +23,7 @@ def main():
 		f.write("\n".join(["%s : %s" % (k, cf.__dict__[k]) for k in cf.__dict__]))
 
 	progress_bar = ProgressBar()
-	data_iterators, test_dataset, word_embeddings, word_to_ix, ix_to_word, wtag_to_ix, ix_to_wtag, char_to_ix, ix_to_char, ctag_to_ix, ix_to_ctag = load_data()
+	data_iterators, word_embeddings, word_to_ix, ix_to_word, wtag_to_ix, ix_to_wtag, char_to_ix, ix_to_char, ctag_to_ix, ix_to_ctag = load_data()
 	logger.info("Building model...")
 
 	if cf.GRANULARITY == CHAR_LEVEL:

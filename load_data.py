@@ -119,35 +119,32 @@ def get_trimmed_emb_vectors(filename):
 def load_datasets(word_to_ix, wtag_to_ix, char_to_ix, ctag_to_ix, ix_to_char, ix_to_word):
 	data_iterators = { "train": None, "dev": None }
 	test_dataset = []
-	for i, dataset in enumerate(["train", "dev", "test"]):
+	for i, dataset in enumerate(["train", "test"]):
 
 		if cf.MODEL_TYPE == S2S:
-			corpusReader = ConllCorpusReader(cf.DATA_FOLDER, [[cf.TRAIN_FILENAME, cf.DEV_FILENAME, cf.TEST_FILENAME][i]], ['words', 'pos'])
+			corpusReader = ConllCorpusReader(cf.DATA_FOLDER, [[cf.TRAIN_FILENAME, cf.TEST_FILENAME][i]], ['words', 'pos'])
 		elif cf.MODEL_TYPE == S21:
-			corpusReader = TabbedCorpusReader(cf.DATA_FOLDER, [[cf.TRAIN_FILENAME, cf.DEV_FILENAME, cf.TEST_FILENAME][i]])
+			corpusReader = TabbedCorpusReader(cf.DATA_FOLDER, [[cf.TRAIN_FILENAME, cf.TEST_FILENAME][i]])
 
 		tagged_sents = corpusReader.tagged_sents()
 		data_w, data_x, data_y, rejected_sents, rejected_words = tagged_sents_to_numpy(tagged_sents, word_to_ix, wtag_to_ix, char_to_ix, ctag_to_ix, ix_to_char, ix_to_word)
 		myDataset = MyDataset(data_w, data_x, data_y)
 
 
-		if dataset == "test":
-			test_dataset = myDataset
-		else:			
-			data_iterator = DataLoader(myDataset, batch_size=cf.BATCH_SIZE, pin_memory=True)
-			data_iterators[dataset] = data_iterator
+		data_iterator = DataLoader(myDataset, batch_size=cf.BATCH_SIZE, pin_memory=True)
+		data_iterators[dataset] = data_iterator
 			#for d in data_iterator:
 		#		torch.set_printoptions(threshold = 5000000)
 	#			print d 
 	#			exit()
-			logger.info("Loaded %d %s batches.\n" % (len(data_iterator), dataset) +
-				"      (%d x %d = ~%d sentences total)" % (len(data_iterator), cf.BATCH_SIZE, len(data_iterator) * cf.BATCH_SIZE))
+		logger.info("Loaded %d %s batches.\n" % (len(data_iterator), dataset) +
+			"      (%d x %d = ~%d sentences total)" % (len(data_iterator), cf.BATCH_SIZE, len(data_iterator) * cf.BATCH_SIZE))
 		if len(rejected_sents) > 0:
 			logger.warning("%d of %d sentences from the %s set were trimmed due to being too long or short." % (len(rejected_sents), len(tagged_sents) + len(rejected_sents), dataset))
 		if len(rejected_words) > 0:
 			logger.warning("%d words from the %s set were trimmed due to being too long." % (len(rejected_words), dataset))
 
-	return data_iterators, test_dataset
+	return data_iterators
 
 class MyDataset(Dataset):
 	def __init__(self, w, x, y):
@@ -181,7 +178,7 @@ def load_data():
 		ix_to_ctag = [line.strip() for line in f]
 
 
-	data_iterators, test_dataset = load_datasets(word_to_ix, wtag_to_ix, char_to_ix, ctag_to_ix, ix_to_char, ix_to_word)
+	data_iterators = load_datasets(word_to_ix, wtag_to_ix, char_to_ix, ctag_to_ix, ix_to_char, ix_to_word)
 
 	if cf.USE_PRETRAINED_WORD_EMBEDDINGS:
 		pretrained_embeddings = get_trimmed_emb_vectors(cf.EMB_TRIMMED_FILENAME)
@@ -189,4 +186,4 @@ def load_data():
 	else:
 		pretrained_embeddings = None
 
-	return data_iterators, test_dataset, pretrained_embeddings, word_to_ix, ix_to_word, wtag_to_ix, ix_to_wtag, char_to_ix, ix_to_char, ctag_to_ix, ix_to_ctag
+	return data_iterators, pretrained_embeddings, word_to_ix, ix_to_word, wtag_to_ix, ix_to_wtag, char_to_ix, ix_to_char, ctag_to_ix, ix_to_ctag

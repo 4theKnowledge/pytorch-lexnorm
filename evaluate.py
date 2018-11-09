@@ -79,9 +79,6 @@ def evaluate_model(model, dev_iterator, word_to_ix, ix_to_word, wtag_to_ix, ix_t
 
 								word_ix = token_ix
 
-								s.append(word_color + ix_to_word[word_ix] + Style.DIM + (("/" + Style.RESET_ALL + tag_color + ix_to_wtag[pi]) if ci > 0 else "") + Style.RESET_ALL)
-
-
 								original_word = ix_to_word[word_ix]								
 								predicted_word = ix_to_wtag[pi]
 								correct_word = ix_to_wtag[ci]
@@ -90,6 +87,12 @@ def evaluate_model(model, dev_iterator, word_to_ix, ix_to_word, wtag_to_ix, ix_t
 									correct_word = original_word
 								if pi == wtag_to_ix["<SELF>"]:
 									predicted_word = original_word
+
+								if correct_word == original_word and predicted_word == correct_word:
+									tag_color = Style.DIM
+
+								s.append(word_color + original_word + Style.DIM + (("/" + Style.RESET_ALL + tag_color + wtag_to_ix[pi]) if ci > 0 else "") + Style.RESET_ALL)
+
 
 								wordlist.append(original_word)
 								predlist.append(predicted_word)

@@ -115,7 +115,7 @@ def main():
 		loss_list.append(loss)
 
 		if epoch % 10 == 0 or epoch == cf.MAX_EPOCHS:
-			f1 = evaluate_model(model, data_iterators["dev"], word_to_ix, ix_to_word, wtag_to_ix, ix_to_wtag, char_to_ix, ix_to_char, ctag_to_ix, ix_to_ctag, epoch, print_output = True);
+			f1 = evaluate_model(model, data_iterators["test"], word_to_ix, ix_to_word, wtag_to_ix, ix_to_wtag, char_to_ix, ix_to_char, ctag_to_ix, ix_to_ctag, epoch, print_output = True);
 			max_f1 = max(f1_list) if len(f1_list) > 0 else 0.0
 			f1_list.append(f1)
 			if f1 > max_f1:

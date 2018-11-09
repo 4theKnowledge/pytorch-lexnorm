@@ -11,9 +11,12 @@ from data_utils import TabbedCorpusReader
 from nltk.corpus.reader import ConllCorpusReader
 
 import torch
+
+
+
+
 # Converts a dataset to a numpy format so it can be loaded into the DataLoader.
 # if test_set is True, ignore min/max lengths
-
 def tagged_sents_to_numpy(tagged_sents, word_to_ix, wtag_to_ix, char_to_ix, ctag_to_ix, ix_to_char, ix_to_word):
 
 	data_w = []

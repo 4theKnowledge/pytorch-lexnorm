@@ -24,7 +24,7 @@ def evaluate_model(model, dev_iterator, word_to_ix, ix_to_word, wtag_to_ix, ix_t
 	with torch.no_grad():
 		if print_output:
 			print ""
-			logger.info("Dev set evaluation: ")
+			logger.info("Test set evaluation: ")
 		for (bi, (batch_w, batch_x, batch_y)) in enumerate(dev_iterator):
 			# Ignore batch if it is not the same size as the others (happens at the end sometimes)
 			if len(batch_x) != cf.BATCH_SIZE:
@@ -79,19 +79,8 @@ def evaluate_model(model, dev_iterator, word_to_ix, ix_to_word, wtag_to_ix, ix_t
 
 								word_ix = token_ix
 
-								# ci is the index of the correct normalisation tag
-								# pi is the index of the tag that was predicted
-								# word_index is the index of the word in the vocabulary
-
-
-
-
 								s.append(word_color + ix_to_word[word_ix] + Style.DIM + (("/" + Style.RESET_ALL + tag_color + ix_to_wtag[pi]) if ci > 0 else "") + Style.RESET_ALL)
 
-								# if ci == wtag_to_ix["<SELF>"]:
-								# 	word_tag_index = wtag_to_ix["<SELF>"]
-								# else:
-								# 	word_tag_ix = wtag_to_ix[ix_to_word[word_ix]]
 
 								original_word = ix_to_word[word_ix]								
 								predicted_word = ix_to_wtag[pi]

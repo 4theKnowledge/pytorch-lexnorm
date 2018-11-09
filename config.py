@@ -69,9 +69,9 @@ class Config():
 		# self.DEV_FILENAME		= 'dev.tsv'
 		# self.TEST_FILENAME		= 'test.tsv'
 
-		self.DATA_FOLDER		= 'data/datasets/twitter_self_lexnorm_word'
+		self.DATA_FOLDER		= 'data/datasets/dmp_self_lexnorm_word'
 		self.TRAIN_FILENAME		= 'train.txt'
-		self.DEV_FILENAME		= 'test.txt'
+		#self.DEV_FILENAME		= 'test.txt'
 		self.TEST_FILENAME		= 'test.txt'
 
 		#self.DATA_FOLDER		= 'data/datasets/dmp'

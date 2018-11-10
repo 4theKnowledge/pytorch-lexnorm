@@ -153,11 +153,11 @@ def evaluate_model(model, test_iterator, word_to_ix, ix_to_word, wtag_to_ix, ix_
 
 				if cf.GRANULARITY in [CHAR_LEVEL, CHAR_AND_WORD_LEVEL]:
 					if print_output and bi < 1: # Print first 10 dev batches only
-						print "".join(s[1]).ljust(cf.MAX_SENT_LENGTH).replace("<PAD>", "_"), "".join(s[0]).replace("<PAD>", "_")
+						print "".join(s[1]).ljust(cf.MAX_SENT_LENGTH).replace("<PAD>", ""), "".join(s[0]).replace("<PAD>", "_")
 
-					wordlist.append("".join(s[1]).replace("<PAD>", "_"))
-					predlist.append("".join(s[2]).replace("<PAD>", "_"))
-					corrlist.append("".join(s[3]).replace("<PAD>", "_"))
+					wordlist.append("".join(s[1]).replace("<PAD>", ""))
+					predlist.append("".join(s[2]).replace("<PAD>", ""))
+					corrlist.append("".join(s[3]).replace("<PAD>", ""))
 										
 				else:
 					if print_output and bi < 1: # Print first 1 dev batches only
@@ -186,7 +186,7 @@ def evaluate_model(model, test_iterator, word_to_ix, ix_to_word, wtag_to_ix, ix_
 			f.write("=" * 150)
 			f.write("\n")
 			for word, pred, corr in zip(wordlist, predlist, corrlist):
-				f.write(word.ljust(cf.MAX_SENT_LENGTH + 3) + pred.ljust(cf.MAX_SENT_LENGTH + 3) + corr + "\n")
+				f.write(word.ljust(cf.MAX_WORD_LENGTH + 3) + pred.ljust(cf.MAX_WORD_LENGTH + 3) + corr + "\n")
 			logger.info("Predictions saved to %s." % predictions_filename)
 		return f1
 

@@ -38,12 +38,12 @@ class Config():
 
 	def __init__(self):
 
-		self.MODEL_NAME 		= "Michael's LSTM (Twitter Self)"
+		self.MODEL_NAME 		= "Combined LSTM (DMP)"
 
 		self.MODEL_TYPE 		= S2S   # Can be either "S2S" (sequence to sequence) or "S21" (sequence to one).
 
 		self.WORD_EMBEDDING_DIM	= 300	# The number of dimensions to use for word embeddings. Usually 300.
-		self.CHAR_EMBEDDING_DIM	= 50	# The number of dimensions to use for char embeddings.
+		self.CHAR_EMBEDDING_DIM	= 300	# The number of dimensions to use for char embeddings.
 		self.HIDDEN_DIM 		= 300	# The number of dimensions of the hidden layer.
 		self.BATCH_SIZE 		= 100	# The batch size (larger uses more memory but is faster)
 		self.LEARNING_RATE		= 0.1	# The learning rate
@@ -59,7 +59,7 @@ class Config():
 
 		self.USE_PRETRAINED_WORD_EMBEDDINGS = True
 
-		self.GRANULARITY		= WORD_LEVEL
+		self.GRANULARITY		= CHAR_AND_WORD_LEVEL
 
 		if (self.GRANULARITY == CHAR_AND_WORD_LEVEL) :
 			self.MAX_SENT_LENGTH = 5 # Hardcoded to a window size of 5 for now
@@ -69,7 +69,7 @@ class Config():
 		# self.DEV_FILENAME		= 'dev.tsv'
 		# self.TEST_FILENAME		= 'test.tsv'
 
-		self.DATA_FOLDER		= 'data/datasets/twitter_lexnorm_word_self'
+		self.DATA_FOLDER		= 'data/datasets/dmp_lexnorm_word'
 		self.TRAIN_FILENAME		= 'train.txt'
 		#self.DEV_FILENAME		= 'test.txt'
 		self.TEST_FILENAME		= 'test.txt'

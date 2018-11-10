@@ -57,6 +57,7 @@ def main():
 		epoch_start_time = time.time()
 		for (i, (batch_w, batch_x, batch_y)) in enumerate(data_iterators["train"]):
 
+			
 			# Ignore batch if it is not the same size as the others (happens at the end sometimes)
 			if len(batch_w) != cf.BATCH_SIZE:
 				print len(batch_w)
@@ -68,6 +69,12 @@ def main():
 				print len(batch_x)
 				logger.warn("A batch did not have the correct number of words.")
 				continue
+
+			#for i, sent in enumerate(batch_x):
+			#	print "||||"				
+			#	print "".join([ix_to_char[c] for c in batch_x[i]])
+			#	print " ".join([ix_to_word[w] for w in batch_w[i]])
+			#	print "||||"
 
 			batch_w = batch_w.to(device)
 			batch_x = batch_x.to(device)

@@ -114,10 +114,17 @@ class LSTMTagger(nn.Module):
 		# and calculate the loss on that.
 
 		if(self.model_type == S2S):
+			#print Y, Y.size()
+			#mask = torch.all(torch.equal(Y, 0), axis = 1)
+			Y = Y[~torch.all(Y == 0, dim=1)]	# Ignore any words or sentences that are completely padding.
+			#print Y, Y.size()
+
 			Y = Y.view(-1).to(device)
 			Y_hat = Y_hat.view(-1, self.tag_size)
 			# create a mask by filtering out all tokens that ARE NOT the padding token
 			#tag_pad_token = word_to_ix['<PAD>']
+
+
 
 			# In the character-level version, we need to be able to predict the padding token.
 			if cf.GRANULARITY in [CHAR_LEVEL, CHAR_AND_WORD_LEVEL]:
@@ -126,11 +133,14 @@ class LSTMTagger(nn.Module):
 				mask = (Y > 0).float()
 
 			# count how many tokens we have
-			nb_tokens = int(torch.sum(mask).item())
+			nb_tokens = int(torch.sum(mask).item())	
 
 			#print nb_tokens
 			# pick the values for the label and zero out the rest with the mask
-			Y_hat = Y_hat[range(Y_hat.shape[0]), Y] * mask
+			Y_hat = Y_hat[range(Y.shape[0]), Y] * mask
+
+			if cf.GRANULARITY in [CHAR_LEVEL, CHAR_AND_WORD_LEVEL]:
+				nb_tokens = Y_hat.shape[0]		
 
 			# compute cross entropy loss which ignores all <PAD> tokens
 			ce_loss = -torch.sum(Y_hat) / nb_tokens
@@ -184,36 +194,12 @@ class CombinedLSTMTagger(LSTMTagger):
 				torch.zeros(4, self.batch_size, self.hidden_dim, device=device))
 
 	def setup_model(self):
-		self.max_w_length = self.max_sent_length
-		self.max_x_length = self.max_word_length
-
-		self.lstm_word = nn.LSTM(self.word_embedding_dim, self.hidden_dim, bidirectional = True, num_layers = 2, dropout = 0.5)
-		self.lstm_char = nn.LSTM(self.char_embedding_dim, self.hidden_dim, bidirectional = True, num_layers = 2, dropout = 0.5)
-		
-		self.hidden_word = self.init_hidden()
-		self.hidden_char = self.init_hidden()
-
-		#self.hidden2tag = nn.Bilinear(600, 600, self.tag_size)
-
-		# self.attn = nn.Linear(self.hidden_size * 2, self.max_word_length)
-
-		# self.attn_combine = nn.Linear(self.hidden_size * 2, self.hidden_size)
-
 		self.attention = new_parameter(self.batch_size, self.word_embedding_dim, 1)
-
-		#self.bil = nn.Bilinear(self.max_sent_length * self.batch_size, self.max_word_length * self.batch_size, self.max_word_length * self.batch_size)#self.hidden_dim)#, self.tag_size)
-
-
-		self.lstm2hidden = nn.Linear((self.max_sent_length * self.batch_size + self.max_word_length * self.batch_size ), self.batch_size * self.max_word_length)
-
-		#self.wordLstmLinear = nn.Linear(self.hidden_dim * 2, self.batch_size * self.max_word_length)
-		self.hidden2tag = nn.Linear(self.hidden_dim * 2, self.tag_size)#self.tag_size)
-		#self.hidden2tag2 = nn.Linear(self.tag_size, self.max_word_length * self.batch_size)
+		pass
 
 
 	def forward(self, batch_w, batch_x, batch_w_lengths, batch_x_lengths):
-		self.hidden_word = self.init_hidden()
-		self.hidden_char = self.init_hidden()
+		self.hidden = self.init_hidden()
 		
 		batch_size, seq_len_x = batch_x.size()
 		_, seq_len_w 		  = batch_w.size()
@@ -222,115 +208,35 @@ class CombinedLSTMTagger(LSTMTagger):
 		batch_w = self.word_embeddings(batch_w)
 		batch_x = self.char_embeddings(batch_x)		
 
-
 		# 1.1 Attention mechanism
 		# https://pytorch-nlp-tutorial-ny2018.readthedocs.io/en/latest/day2/patterns/attention.html
 		attention_score = torch.matmul(batch_w, self.attention).squeeze()
-		#print attention_score
-		#print attention_score.size()
 		attention_score = F.softmax(attention_score, dim=1).view(batch_w.size(0), batch_w.size(1), 1)
 		scored_w = batch_w * attention_score
 
+		batch = torch.cat((scored_w, batch_x), dim=1)
 
 		# 2. Pack the sequence
-		batch_w = torch.nn.utils.rnn.pack_padded_sequence(scored_w, [self.max_w_length] * batch_size, batch_first=True)
-		batch_x = torch.nn.utils.rnn.pack_padded_sequence(batch_x, [self.max_x_length] * batch_size, batch_first=True)
-	
+		batch = torch.nn.utils.rnn.pack_padded_sequence(batch, [self.max_sent_length + self.max_word_length] * batch_size, batch_first=True)
 
 		# 3. Run through lstm
-		batch_w, self.hidden_word = self.lstm_word(batch_w, self.hidden_word)
-		batch_x, self.hidden_char = self.lstm_char(batch_x, self.hidden_char)
-	
+		batch, self.hidden = self.lstm(batch, self.hidden)
 
 		# Undo packing
-		batch_w, _ = torch.nn.utils.rnn.pad_packed_sequence(batch_w, batch_first = True)
-		batch_x, _ = torch.nn.utils.rnn.pad_packed_sequence(batch_x, batch_first = True)
+		batch, _ = torch.nn.utils.rnn.pad_packed_sequence(batch, batch_first = True)
 
-		#print batch_w.shape
-		#print batch_x.shape
-		#print batch_w.shape
-		#print batch_x.shape
-
-		batch_w = batch_w.contiguous().view(-1, batch_w.shape[2]).transpose_(0, 1)
-		batch_x = batch_x.contiguous().view(-1, batch_x.shape[2]).transpose_(0, 1)#.transpose_(0, 1)
-
-		#print batch_w.size()
-		#print batch_x.size()
-
-		#print "000"
-		batch = torch.cat((batch_w, batch_x), dim=1)
-
-		#print batch.size()
-
-		batch = self.lstm2hidden(batch).transpose_(0, 1)
-
-		#print batch.size()
-
-        # now, sum across dim 1 to get the expected feature vector
-		#condensed_w = torch.sum(scored_w, dim=1)
-
-		#print "W:", condensed_w.size()
-
-		#print condensed_w
-
-		#scored_w = scored_w.view(-1, scored_w.shape[2])
-		#print scored_w.size()
-		#print batch_x.size()
-
-		#print batch_w.shape
-		#print batch_x.shape
-
-		#batch_w = self.wordLstmLinear(batch_w)
-
-		#attn_weights = F.softmax(
-        #    self.attn(torch.cat((batch_w[0], batch_x[0]), 1)), dim=1)
-
-        #attn_applied = torch.bmm(attn_weights.unsqueeze(0),
-        #                         batch_x.unsqueeze(0))
-
-       	#output = torch.cat((embedded[0], attn_applied[0]), 1)
-       	#output = self.attn_combine(output).unsqueeze(0)
-
-		#batch = torch.cat((batch_w, batch_x))
-
-		#print batch.shape
-
-
-		#batch = self.hidden2tag(batch)
-
-		#print batch.shape, "h2t"
-
-		#batch = self.hidden2tag2(batch)
-
-		#print batch.shape
-
-		#batch = self.bil(batch_w, batch_x).transpose_(0, 1)
-
-		#print batch.size(), "bil"
+		#batch_w = batch_w.contiguous().view(-1, batch_w.shape[2]).transpose_(0, 1)
+		batch = batch.contiguous().view(-1, batch.shape[2])#.transpose_(0, 1)
 
 		batch = self.hidden2tag(batch)
 
-		#print batch.size()
-		#print batch.size(), "h2t"
+		batch = batch.view(batch_size, self.max_sent_length + self.max_word_length, self.tag_size)
 
-		#batch_w = self.attn(batch_w)
-		
+		# Ignore the first max_sent_length predictions as they correspond to the timesteps of the word embeddings
+		batch = batch[:, self.max_sent_length:, :]	
+		batch = batch.contiguous().view(batch_size * self.max_word_length, self.tag_size) # Keep flipping the batch until it works
+		batch = F.log_softmax(batch, dim=1)		
+		Y_hat = batch.view(batch_size, self.max_word_length, self.tag_size)
 
-
-		#batch = self.hidden2tag(batch)
-		#print batch.size(), "after hidden2tag"
-
-		batch = F.log_softmax(batch, dim=1)
-
-		#print batch[0:100]
-
-		#print batch.size()
-
-		Y_hat = batch.view(batch_size, seq_len_x, self.tag_size)
-
-		if self.model_type == S2S:
-			return Y_hat 
-		else:
-			raise Exception("Model not yet implemented for S21")
-		#elif self.model_type == S21:
-		#	return torch.stack([ y[batch_x_lengths[i] - 1] for i, y in enumerate(Y_hat) ])		
+		return Y_hat 
+			

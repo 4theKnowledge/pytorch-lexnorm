@@ -1,4 +1,4 @@
 old/*
-models/*
-asset/*
 *.pyc
+__pycache__/*
+!.gitignore

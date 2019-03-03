@@ -35,12 +35,6 @@ def tagged_sents_to_numpy(tagged_sents, word_to_ix, wtag_to_ix, char_to_ix, ctag
 	filtered_words = []
 	rejected_tags  = []
 	non_alphabetical_words = []
-
-	if cf.USE_PRETRAINED_WORD_EMBEDDINGS:
-		pretrained_embeddings = get_trimmed_emb_vectors(cf.EMB_TRIMMED_FILENAME)
-
-	debugf = codecs.open("debug_bert3.txt", "w", "utf-8")
-
 	for sent in tagged_sents:
 
 		words, tags = zip(*sent)
@@ -60,29 +54,14 @@ def tagged_sents_to_numpy(tagged_sents, word_to_ix, wtag_to_ix, char_to_ix, ctag
 			if cf.MODEL_TYPE == S2S:
 
 				wordz = np.zeros(cf.MAX_SENT_LENGTH, dtype=int)
-
-				if cf.EMBEDDING_MODEL in ["Elmo", "Bert"]:
+				if cf.EMBEDDING_MODEL == "Elmo":
 					for jj, (word, tag) in enumerate(sent):
-
-
-						debugf.write("%s %s %s\n" % (word, tag, str(pretrained_embeddings[word_index][:5])))
-
-						#if word == "the":
-						#	print (word, tag, pretrained_embeddings[word_index][:5])
-
 						#print ix_to_word[word_index], word
-						if jj >= cf.MAX_SENT_LENGTH:							
-							
-							#print "(SKIP)", ix_to_word[word_index], word
+						if jj >= cf.MAX_SENT_LENGTH:
 							word_index += 1
 							continue
-
-						#print ix_to_word[word_index], word
-
 						wordz[jj] = word_index
-						#print ix_to_word[word_index], word, word_index
 						if ix_to_word[word_index] != word:
-							print sent
 							raise Exception("Word and index mismatch at word index %d (%s / %s)" % (word_index, ix_to_word[word_index], word))
 						word_index += 1
 				else:
@@ -111,7 +90,7 @@ def tagged_sents_to_numpy(tagged_sents, word_to_ix, wtag_to_ix, char_to_ix, ctag
 				#data_y.append(wtag_to_ix[tag])
 
 		elif cf.GRANULARITY in [CHAR_LEVEL, CHAR_AND_WORD_LEVEL]:
-			word_start_index = word_index
+			
 			for i, (word, tag) in enumerate(sent):
 
 				
@@ -125,11 +104,9 @@ def tagged_sents_to_numpy(tagged_sents, word_to_ix, wtag_to_ix, char_to_ix, ctag
 				# Any words starting with #, @ etc are not included in the training set.
 				if any(word.startswith(s) for s in cf.ignore_words_starting_with) and dataset == "train":
 					filtered_words.append(word)
-					word_index += 1
 					continue
 				if cf.ignore_non_alphabetical and not any(c.isalpha() for c in word) and dataset == "train":
 					non_alphabetical_words.append(word)
-					word_index += 1					
 					continue
 
 						
@@ -152,18 +129,14 @@ def tagged_sents_to_numpy(tagged_sents, word_to_ix, wtag_to_ix, char_to_ix, ctag
 				if cf.GRANULARITY == CHAR_LEVEL:
 					data_w.append([0])
 				elif cf.GRANULARITY == CHAR_AND_WORD_LEVEL:
+
 					word = auto_replace_word(word)
-				
-					
-					if cf.EMBEDDING_MODEL in ["Elmo", "Bert"]:
-						word_ids = [0, 0, 0] + [(word_start_index + iii) for iii, ww in enumerate(words)] + [0, 0, 0]
-					else:
-						word_ids = [0, 0, 0] + [word_to_ix[ww] for ww in words] + [0, 0, 0]
+
+
+					word_ids = [0, 0, 0] + [(word_index + iii) for iii, w in enumerate(words)] + [0, 0, 0]
 
 					context_left = []
 					context_right = []
-
-					#print word_ids 
 
 					context_wordz = word_ids[i-3+3: i+4+3]
 
@@ -181,17 +154,18 @@ def tagged_sents_to_numpy(tagged_sents, word_to_ix, wtag_to_ix, char_to_ix, ctag
 					#context_wordz = words[max(0, i) : min(len(words), i+5)]	 # hardcoded to 5 for now
 
 					#if len(context_wordz) != 5:
-					#print ""
-					#print "SENT:", sent 
-					#print "WORD:", word
-					#print "CTX: ", context_wordz
-					#print "CTX: ", [ix_to_word[ix] for ix in context_wordz]
+					print ""
+					print "SENT:", sent 
+					print "WORDS:", words
+					print "WORD:", word
+					print "CTX: ", context_wordz
+					print "CTX: ", [ix_to_word[ix] for ix in context_wordz]
 					data_w.append(context_wordz)
-
-					#if cf.EMBEDDING_MODEL == "Elmo":
+					
+					print "WI:", word_index, ix_to_word[word_index]
+					if word_index > 10:
+						exit()
 					word_index += 1
-					#if word_index > 100:
-					#	exit()
 				data_x.append(charz)
 				
 	

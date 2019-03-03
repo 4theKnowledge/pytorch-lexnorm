@@ -1,9 +1,9 @@
 from config import * 
-cf = Config()
+
 
 import pickle as pkl
 import numpy as np
-from get_nltk_sents import get_nltk_sents
+#from get_nltk_sents import get_nltk_sents
 from nltk.corpus.reader import ConllCorpusReader
 from subprocess import call
 import os
@@ -48,8 +48,6 @@ def get_unique_test_tag_set():
 	return test_unique_wordtags, test_unique_chartags
 
 def get_char_and_chartag_ids(tagged_sents):
-	if cf.MODEL_TYPE == S21:
-		logger.warn("S21 model not supported for chars yet.")
 	char_to_ix = { "<PAD>": 0 }
 	ix_to_char = [ "<PAD>" ]
 
@@ -73,11 +71,24 @@ def get_char_and_chartag_ids(tagged_sents):
 	return char_to_ix, ix_to_char, ctag_to_ix, ix_to_ctag
 
 
+# Replace any words that appear in the data with the corresponding replacement term,
+# such as replacing all hashtags with "<HASHTAG>".
+def auto_replace_word(w):
+	for k, v in cf.ignored_words_replacement_map.items():		
+		if w.startswith(k):
+			w = v
+	return w
+
 # Generate word_to_ix and wtag_to_ix for tagged_sents (which are in Conll2000 format).
 # Also generate the inverse ix_to_word and ix_to_wtag.
 def get_word_and_wordtag_ids(tagged_sents):
-	word_to_ix = { "<PAD>": 0 }
-	ix_to_word = [ "<PAD>" ]
+	if cf.GRANULARITY in [CHAR_LEVEL, CHAR_AND_WORD_LEVEL]:
+		word_to_ix = { "<PAD>": 0 }
+		ix_to_word = [ "<PAD>" ]
+	elif cf.GRANULARITY == WORD_LEVEL:
+		word_to_ix = { "<PAD>": 0}
+		ix_to_word = [ "<PAD>" ]		
+	unk_terms = 0 # Terms that were replaced with UNK due to being undesirable (hashtags, etc)
 
 	if cf.MODEL_TYPE == S2S:
 		wtag_to_ix = { "<PAD>" : 0}
@@ -86,28 +97,34 @@ def get_word_and_wordtag_ids(tagged_sents):
 		wtag_to_ix = {}
 		ix_to_wtag = []
 	for sent in tagged_sents:
-		if cf.MODEL_TYPE == S2S:
-			for word, tag in sent:
-				if word not in word_to_ix:
-					word_to_ix[word] = len(word_to_ix)
-					ix_to_word.append(word)
-				if tag not in wtag_to_ix: # and tag not in test_unique_wordtags:
-					wtag_to_ix[tag] = len(wtag_to_ix)
-					ix_to_wtag.append(tag)
-
-		elif cf.MODEL_TYPE == S21:			
-			for word in sent[0]:
-				if word not in word_to_ix:
-					word_to_ix[word] = len(word_to_ix)
-					ix_to_word.append(word)
-			tag = sent[1]
-			if tag not in wtag_to_ix:
+		#if cf.MODEL_TYPE == S2S:
+		for word, tag in sent:
+			word = auto_replace_word(word)
+			#if any(word.startswith(s) for s in cf.ignore_words_starting_with):
+			#	unk_terms += 1
+			#	word = "<UNK>"
+			if word not in word_to_ix:
+				word_to_ix[word] = len(word_to_ix)
+				ix_to_word.append(word)
+			if tag not in wtag_to_ix: # and tag not in test_unique_wordtags:
 				wtag_to_ix[tag] = len(wtag_to_ix)
 				ix_to_wtag.append(tag)
+
+		#elif cf.MODEL_TYPE == S21:			
+		#	for word in sent[0]:
+		#		if word not in word_to_ix:
+		#			word_to_ix[word] = len(word_to_ix)
+		#			ix_to_word.append(word)
+		#	tag = sent[1]
+		#	if tag not in wtag_to_ix:
+		#		wtag_to_ix[tag] = len(wtag_to_ix)
+		#		ix_to_wtag.append(tag)
 	#word_to_ix[SOS_TOKEN] = len(word_to_ix)
 	#word_to_ix[EOS_TOKEN] = len(word_to_ix)
 	#ix_to_word = [k for k, v in word_to_ix.iteritems()]
 	#ix_to_wtag = [k for k, v in wtag_to_ix.iteritems()]
+	if unk_terms > 0:
+		logger.debug("%d undesirable terms were replaced with <UNK>." % unk_terms)
 	return word_to_ix, ix_to_word, wtag_to_ix, ix_to_wtag
 
 # Remove any sents that are too short or long.
@@ -127,6 +144,11 @@ def clean_sentences(sentences):
 def get_emb_vocab(filename):
 	logger.info("Loading embedding vocab...")
 	vocab = set()
+	#if cf.GRANULARITY in [CHAR_AND_WORD_LEVEL, WORD_LEVEL]:
+	#	vocab.add("<UNK>")
+	#if cf.GRANULARITY == CHAR_AND_WORD_LEVEL:
+	#	vocab.add("<SOS>")
+	#	vocab.add("<EOS>")	
 	with open(filename) as f:
 		for line in f:
 			word = line.strip().split(' ')[0]
@@ -136,7 +158,7 @@ def get_emb_vocab(filename):
 
 
 # Found at https://github.com/guillaumegenthial/sequence_wtagging
-def export_trimmed_embedding_vectors(vocab, oov_embeddings_filename, emb_filename, trimmed_filename, dim):
+def export_trimmed_embedding_vectors(vocab, embedding_dim, oov_embeddings_filename, emb_filename, trimmed_filename, dim):
 	"""
 	Saves glove vectors in numpy array
 
@@ -149,7 +171,12 @@ def export_trimmed_embedding_vectors(vocab, oov_embeddings_filename, emb_filenam
 	logger.info("Generating trimmed embedding vectors...")
 	embeddings = np.zeros([len(vocab), dim])
 
-	embeddings[0] = np.zeros(cf.WORD_EMBEDDING_DIM) # add zero embeddings for padding
+	embeddings[0] = np.zeros(embedding_dim) # add zero embeddings for padding
+	#if cf.GRANULARITY in [WORD_LEVEL, CHAR_AND_WORD_LEVEL]:
+	#	embeddings[1] = np.random.uniform(size=embedding_dim) # add random embeddings for the UNK tag
+	#if cf.GRANULARITY == CHAR_AND_WORD_LEVEL:
+	#	embeddings[2] = np.random.uniform(size=embedding_dim) # add random embeddings for the SOS tag
+	#	embeddings[3] = np.random.uniform(size=embedding_dim) # add random embeddings for the EOS tag
 
 	for filename in [emb_filename, oov_embeddings_filename]:
 		if not os.path.isfile(filename):
@@ -174,42 +201,43 @@ def export_trimmed_embedding_vectors(vocab, oov_embeddings_filename, emb_filenam
 
 # Use FastText to generate embeddings for any words that are OOV.
 # TODO: Allow other emb models
-def generate_oov_embeddings(ix_to_word, emb_vocab, emb_model="fasttext"):
-	oov_tokens = [word for word in ix_to_word[1:] if word not in emb_vocab] # Ignore the first token (the pad token)
+def generate_oov_embeddings(ix_to_word, emb_vocab, emb_bin_filename, oov_tokens_filename, emb_oov_filename, emb_model="fasttext"):
+	oov_tokens = [word for word in ix_to_word[1:] if word not in emb_vocab] # Ignore the first token (the pad token).
 
+	print(oov_tokens)
 	logger.debug("Vocab size: %d\n      Emb vocab size: %d\n      OOV Tokens: %d" % (len(ix_to_word), len(emb_vocab), len(oov_tokens)))
 
 	if len(oov_tokens) == 0:
 		logger.info("No OOV tokens were found.")
-		if(os.path.exists(cf.EMB_OOV_FILENAME)):
-			os.remove(cf.EMB_OOV_FILENAME)
-		if(os.path.exists(cf.OOV_TOKENS_FILENAME)):
-			os.remove(cf.OOV_TOKENS_FILENAME)
-		logger.info("The OOV embedding files (%s and %s) were removed." % (cf.EMB_OOV_FILENAME, cf.OOV_TOKENS_FILENAME))
+		if(os.path.exists(emb_oov_filename)):
+			os.remove(emb_oov_filename)
+		if(os.path.exists(oov_tokens_filename)):
+			os.remove(oov_tokens_filename)
+		logger.info("The OOV embedding files (%s and %s) were removed." % (emb_oov_filename, oov_tokens_filename))
 		return
 
 	logger.info("Generating embeddings for tokens not found in the pretrained embeddings...")
-	with codecs.open(cf.OOV_TOKENS_FILENAME, 'w', 'utf-8') as f:
+	with codecs.open(oov_tokens_filename, 'w', 'utf-8') as f:
 		f.write("\n".join(oov_tokens))
-	os.system("fasttext print-word-vectors \"%s\" < \"%s\" > \"%s\"" % (cf.EMB_BIN_FILENAME, cf.OOV_TOKENS_FILENAME, cf.EMB_OOV_FILENAME))
+	os.system("fasttext print-word-vectors \"%s\" < \"%s\" > \"%s\"" % (emb_bin_filename, oov_tokens_filename, emb_oov_filename))
 
 
 # Save all data to the relevant files.
 def save_data_to_files(tagged_sents, word_to_ix, wtag_to_ix, ix_to_word, ix_to_wtag, char_to_ix, ctag_to_ix, ix_to_char, ix_to_ctag):
-	with open("%s/tagged_sents_all.pkl" % cf.ASSET_FOLDER, 'w') as f:
-	 	pkl.dump(list(tagged_sents), f)
-	with open("%s/word_to_ix.pkl" % cf.ASSET_FOLDER, 'w') as f:
-		pkl.dump(word_to_ix, f)
-	with open("%s/wtag_to_ix.pkl" % cf.ASSET_FOLDER, 'w') as f:
-		pkl.dump(wtag_to_ix, f)
+	with open("%s/tagged_sents_all.pkl" % cf.ASSET_FOLDER, 'wb') as f:
+	 	pkl.dump(list(tagged_sents), f, protocol=2)
+	with open("%s/word_to_ix.pkl" % cf.ASSET_FOLDER, 'wb') as f:
+		pkl.dump(word_to_ix, f, protocol=2)
+	with open("%s/wtag_to_ix.pkl" % cf.ASSET_FOLDER, 'wb') as f:
+		pkl.dump(wtag_to_ix, f, protocol=2)
 	with codecs.open("%s/ix_to_word.txt" % cf.ASSET_FOLDER, 'w', 'utf-8') as f:
 		f.write("\n".join(ix_to_word))	
 	with codecs.open("%s/ix_to_wtag.txt" % cf.ASSET_FOLDER, 'w', 'utf-8') as f:
 		f.write("\n".join(ix_to_wtag))
-	with open("%s/char_to_ix.pkl" % cf.ASSET_FOLDER, 'w') as f:
-		pkl.dump(char_to_ix, f)
-	with open("%s/ctag_to_ix.pkl" % cf.ASSET_FOLDER, 'w') as f:
-		pkl.dump(ctag_to_ix, f)
+	with open("%s/char_to_ix.pkl" % cf.ASSET_FOLDER, 'wb') as f:
+		pkl.dump(char_to_ix, f, protocol=2)
+	with open("%s/ctag_to_ix.pkl" % cf.ASSET_FOLDER, 'wb') as f:
+		pkl.dump(ctag_to_ix, f, protocol=2)
 	with codecs.open("%s/ix_to_char.txt" % cf.ASSET_FOLDER, 'w', 'utf-8') as f:
 		f.write("\n".join(ix_to_char))	
 	with codecs.open("%s/ix_to_ctag.txt" % cf.ASSET_FOLDER, 'w', 'utf-8') as f:
@@ -217,10 +245,13 @@ def save_data_to_files(tagged_sents, word_to_ix, wtag_to_ix, ix_to_word, ix_to_w
 
 
 def main():
-	if cf.MODEL_TYPE == S2S:
-		corpusReader = ConllCorpusReader(cf.DATA_FOLDER, [cf.TRAIN_FILENAME, cf.TEST_FILENAME], ['words', 'pos'])
-	elif cf.MODEL_TYPE == S21:
-		corpusReader = TabbedCorpusReader(cf.DATA_FOLDER, [cf.TRAIN_FILENAME, cf.TEST_FILENAME])
+
+	if cf.EMBEDDING_MODEL == "Elmo":
+		raise Exception("Please use build_data_elmo instead.")
+	#if cf.MODEL_TYPE == S2S:
+	corpusReader = ConllCorpusReader(cf.DATA_FOLDER, [cf.TRAIN_FILENAME, cf.TEST_FILENAME], ['words', 'pos'])
+	#elif cf.MODEL_TYPE == S21:
+	#	corpusReader = TabbedCorpusReader(cf.DATA_FOLDER, [cf.TRAIN_FILENAME, cf.TEST_FILENAME])
 
 	tagged_sents = corpusReader.tagged_sents()
 
@@ -240,10 +271,15 @@ def main():
 		emb_vocab = get_emb_vocab(cf.EMB_VEC_FILENAME)
 
 		# Generate OOV embeddings for any words in ix_to_word that aren't in emb_vocab
-		generate_oov_embeddings(ix_to_word, emb_vocab)
+		#generate_oov_embeddings(ix_to_word, emb_vocab, cf.EMB_BIN_FILENAME, cf.OOV_TOKENS_FILENAME, cf.EMB_OOV_FILENAME)
 
 		# Combine OOV embeddings with IV embeddings and export them to a file
-		export_trimmed_embedding_vectors(word_to_ix, cf.EMB_OOV_FILENAME, cf.EMB_VEC_FILENAME, cf.EMB_TRIMMED_FILENAME, cf.WORD_EMBEDDING_DIM)
+		export_trimmed_embedding_vectors(word_to_ix, cf.WORD_EMBEDDING_DIM, cf.EMB_OOV_FILENAME, cf.EMB_VEC_FILENAME, cf.EMB_TRIMMED_FILENAME, cf.WORD_EMBEDDING_DIM)
+
+	if cf.USE_PRETRAINED_CHAR_EMBEDDINGS:
+		char_emb_vocab = get_emb_vocab(cf.CHAR_EMB_VEC_FILENAME)
+		generate_oov_embeddings(ix_to_char, char_emb_vocab, cf.CHAR_EMB_BIN_FILENAME, cf.CHAR_OOV_TOKENS_FILENAME, cf.CHAR_EMB_OOV_FILENAME)
+		export_trimmed_embedding_vectors(char_to_ix, cf.CHAR_EMBEDDING_DIM, cf.CHAR_EMB_OOV_FILENAME, cf.CHAR_EMB_VEC_FILENAME, cf.CHAR_EMB_TRIMMED_FILENAME, cf.CHAR_EMBEDDING_DIM)
 
 	logger.info("Data building complete.")
 

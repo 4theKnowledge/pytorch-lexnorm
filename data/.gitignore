@@ -1,5 +1,8 @@
-*
-*/
-!datasets
-!datasets/*
-!.gitignore
+bilm-tf
+bilm-tf/*
+fasttext
+fasttext/*
+glove
+glove/*
+twitter_embeddings_char
+twitter_embeddings_char/*

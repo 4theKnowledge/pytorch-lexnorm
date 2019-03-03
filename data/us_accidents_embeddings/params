@@ -1,0 +1,3 @@
+fasttext skipgram -input us_accidents.txt -output model -dim 300 -epoch 50 -minCount 1
+
+other one was the same but with epoch 50

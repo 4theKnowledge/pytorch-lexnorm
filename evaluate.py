@@ -34,8 +34,8 @@ def evaluate_model(model, test_iterator, word_to_ix, ix_to_word, wtag_to_ix, ix_
 
 	with torch.no_grad():
 		if print_output:
-			print ""
-			print "      Test set evaluation: "			
+			print("")
+			print ("      Test set evaluation: ")	
 
 		num_batches = len(test_iterator)
 
@@ -121,19 +121,19 @@ def evaluate_model(model, test_iterator, word_to_ix, ix_to_word, wtag_to_ix, ix_
 
 					# Print words in first batch only, and only the first 50 words
 					if bi == 0 and i < 50 and print_output:					
-						print original_word,
+						print(original_word, end="")
 						predstr = ""
 						longer_wordlen = max(len(correct_word), len(predicted_word))
 						pad_p = predicted_word.ljust(longer_wordlen, "_")
 						pad_c = correct_word.ljust(longer_wordlen, "_")
 						if filtered_term:
-							print Fore.YELLOW + predicted_word + Style.RESET_ALL,
+							print(Fore.YELLOW + predicted_word + Style.RESET_ALL, end="")
 						else:
 							for cix, c in enumerate(pad_p):
 								char_color = Fore.GREEN if pad_p[cix] == pad_c[cix] else Fore.RED
 								predstr += char_color + c
-							print predstr + Style.RESET_ALL,
-						print Style.DIM + correct_word + Style.RESET_ALL
+							print(predstr + Style.RESET_ALL, end="")
+						print(Style.DIM + correct_word + Style.RESET_ALL)
 						
 						
 
@@ -178,11 +178,11 @@ def evaluate_model(model, test_iterator, word_to_ix, ix_to_word, wtag_to_ix, ix_
 
 							if bi <= 1 and j <= 5 and print_output:
 								tag_color = Fore.GREEN if predicted_word == correct_word else Fore.RED
-								print original_word, tag_color, predicted_word, Style.RESET_ALL, correct_word,
+								print(original_word, tag_color, predicted_word, Style.RESET_ALL, correct_word, end="")
 								if cf.WORD_LEVEL_WITH_FLAGGER:
-									print " %s" % ["False", "True"][pi_f]
+									print(" %s" % ["False", "True"][pi_f])
 								else:
-									print ""
+									print("")
 
 							wordlist.append(original_word)
 							predlist.append(predicted_word)
@@ -212,7 +212,7 @@ def evaluate_model(model, test_iterator, word_to_ix, ix_to_word, wtag_to_ix, ix_
 						
 
 						if bi < 1:
-							print "%s %s %s" % (original_word, tag_color + ix_to_ctag[pi], Style.RESET_ALL + ix_to_ctag[ci])					
+							print("%s %s %s" % (original_word, tag_color + ix_to_ctag[pi], Style.RESET_ALL + ix_to_ctag[ci]))	
 
 						wordlist.append(original_word)
 						predlist.append(ix_to_ctag[pi])
@@ -248,7 +248,7 @@ def evaluate_model(model, test_iterator, word_to_ix, ix_to_word, wtag_to_ix, ix_
 							tag_color = Fore.YELLOW
 
 						if bi < 1:	
-							print "%s %s %s" % (original_word, tag_color + predicted_word, Style.RESET_ALL + correct_word)
+							print("%s %s %s" % (original_word, tag_color + predicted_word, Style.RESET_ALL + correct_word))
 				
 						if correct_word != "<PAD>":
 							dd.write("%d %d %d | %s %s %s\n" % (correct_preds, total_correctable, total_preds, original_word, predicted_word, correct_word))							
@@ -271,12 +271,12 @@ def evaluate_model(model, test_iterator, word_to_ix, ix_to_word, wtag_to_ix, ix_
 			if not cf.FLAGGER_MODE and bi == 9:
 				p, r, f1 = calculate_f1(correct_preds, total_preds, total_correctable)
 				if f1 == 0.0:
-					print ""
+					print("")
 					logger.info("F1 score of first 10 batches is 0. Not evaluating other batches.")
-					print ""
+					print("")
 					return f1
 		if print_output:
-			print ""	
+			print("")	
 
 		
 		#print correct_preds, total_preds, total_correctable
@@ -290,9 +290,9 @@ def evaluate_model(model, test_iterator, word_to_ix, ix_to_word, wtag_to_ix, ix_
 			score = calculate_acc(correct_preds, total_preds)
 			metric_name = "Accuracy"
 
-		print "-" * 100
+		print("-" * 100)
 		logger.info("%s: %.4f" % (metric_name, score))
-		print "-" * 100			
+		print("-" * 100	)		
 
 
 		predictions_filename = "models/%s/predictions/predictions_%d.txt" % (cf.MODEL_NAME, epoch_number)		

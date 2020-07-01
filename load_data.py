@@ -82,7 +82,7 @@ def tagged_sents_to_numpy(tagged_sents, word_to_ix, wtag_to_ix, char_to_ix, ctag
 						wordz[jj] = word_index
 						#print ix_to_word[word_index], word, word_index
 						if ix_to_word[word_index] != word:
-							print sent
+							print(sent)
 							raise Exception("Word and index mismatch at word index %d (%s / %s)" % (word_index, ix_to_word[word_index], word))
 						word_index += 1
 				else:
@@ -314,21 +314,21 @@ class MyDataset(Dataset):
 		return self.x.shape[0]
 
 def load_data():
-	with open("%s/word_to_ix.pkl" % cf.ASSET_FOLDER, 'r') as f:
+	with open("%s/word_to_ix.pkl" % cf.ASSET_FOLDER, 'rb') as f:
 		word_to_ix = pkl.load(f)
-	with codecs.open("%s/ix_to_word.txt" % cf.ASSET_FOLDER, 'r', 'utf-8') as f:
+	with open("%s/ix_to_word.txt" % cf.ASSET_FOLDER, 'r') as f:
 		ix_to_word = [line.strip() for line in f]
-	with open("%s/wtag_to_ix.pkl" % cf.ASSET_FOLDER, 'r') as f:
+	with open("%s/wtag_to_ix.pkl" % cf.ASSET_FOLDER, 'rb') as f:
 		wtag_to_ix = pkl.load(f)
-	with codecs.open("%s/ix_to_wtag.txt" % cf.ASSET_FOLDER, 'r', 'utf-8') as f:
+	with open("%s/ix_to_wtag.txt" % cf.ASSET_FOLDER, 'r') as f:
 		ix_to_wtag = [line.strip() for line in f]
-	with open("%s/char_to_ix.pkl" % cf.ASSET_FOLDER, 'r') as f:
+	with open("%s/char_to_ix.pkl" % cf.ASSET_FOLDER, 'rb') as f:
 		char_to_ix = pkl.load(f)
-	with codecs.open("%s/ix_to_char.txt" % cf.ASSET_FOLDER, 'r', 'utf-8') as f:
+	with open("%s/ix_to_char.txt" % cf.ASSET_FOLDER, 'r') as f:
 		ix_to_char = [line.strip() for line in f]
-	with open("%s/ctag_to_ix.pkl" % cf.ASSET_FOLDER, 'r') as f:
+	with open("%s/ctag_to_ix.pkl" % cf.ASSET_FOLDER, 'rb') as f:
 		ctag_to_ix = pkl.load(f)
-	with codecs.open("%s/ix_to_ctag.txt" % cf.ASSET_FOLDER, 'r', 'utf-8') as f:
+	with open("%s/ix_to_ctag.txt" % cf.ASSET_FOLDER, 'r') as f:
 		ix_to_ctag = [line.strip() for line in f]
 
 	if cf.MODEL_TYPE == S21 and cf.FLAGGER_MODE:

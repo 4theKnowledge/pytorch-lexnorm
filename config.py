@@ -50,10 +50,12 @@ CHAR_AND_WORD_LEVEL = "Character and word-level"
 
 
 CF_MODEL = "Word-level"
-CF_DATASET = "Twitter"
-CF_PRETRAINED = False
 CF_FLAGGER = False
-CF_EMBEDDING_MODEL = "FastText"
+
+
+CF_DATASET = "US Acc"
+CF_PRETRAINED = False
+CF_EMBEDDING_MODEL = "Uniform"
 
 
 class Config():

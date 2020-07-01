@@ -36,15 +36,15 @@ class LSTMTagger(nn.Module):
 			self.char_embeddings.weight.data.copy_(torch.from_numpy(pretrained_char_embeddings))
 			self.char_embeddings.weight.requires_grad = False
 
-		print pretrained_embeddings
+		print(pretrained_embeddings)
 		self.word_embeddings = nn.Embedding(vocab_size_word, word_embedding_dim)
-		print self.word_embeddings.weight		
+		print(self.word_embeddings.weight)
 		if pretrained_embeddings is not None:
 			#print "hello"
 			self.word_embeddings.weight.data.copy_(torch.from_numpy(pretrained_embeddings))
 			#if not cf.UPDATE_PRETRAINED_EMBEDDINGS:
 		self.word_embeddings.weight.requires_grad = False
-		print self.word_embeddings.weight
+		print(self.word_embeddings.weight)
 		
 
 		self.hidden = self.init_hidden()

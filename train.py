@@ -81,14 +81,14 @@ def main():
 			# Ignore batch if it is not the same size as the others (happens at the end sometimes)
 
 			if len(batch_w) != cf.BATCH_SIZE:
-				print batch_w
-				print len(batch_w)
+				print(batch_w)
+				print(len(batch_w))
 				logger.warn("A batch did not have the correct number of sentences.")
 				continue
 
 			# Ignore batch if it is not the same size as the others (happens at the end sometimes)
 			if len(batch_x) != cf.BATCH_SIZE:
-				print len(batch_x)
+				print(len(batch_x))
 				logger.warn("A batch did not have the correct number of words.")
 				continue		
 

@@ -36,7 +36,7 @@ Then, run the training script:
 
     $ python train.py
 
-The script will evaluate the model's performance on the test set every epoch. The predictions at each epoch will be saved under `asset/<model folder>`, where `<model folder>` is an automatically generated name based on the parameters specified in `config.py`.
+The script will evaluate the model's performance on the test set every epoch. The predictions at each epoch will be saved under `models/<model folder>`, where `<model folder>` is an automatically generated name based on the parameters specified in `config.py`.
 
 
 
